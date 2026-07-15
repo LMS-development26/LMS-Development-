@@ -1,0 +1,10 @@
+\i schema/01_extensions.sql
+\i schema/02_enum_types.sql
+\i schema/03_users.sql
+\i schema/04_admin_profiles.sql
+\i schema/05_instructor_profiles.sql
+\i schema/06_student_profiles.sql
+\i schema/07_email_verification_tokens.sql
+\i schema/08_login_attempts.sql
+\i schema/09_instructor_approvals.sql
+\i indexes/authentication_indexes.sql

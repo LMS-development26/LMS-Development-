@@ -1,0 +1,15 @@
+CREATE TYPE user_role AS ENUM
+(
+    'ADMIN',
+    'INSTRUCTOR',
+    'STUDENT'
+);
+
+CREATE TYPE user_status AS ENUM
+(
+    'PENDING_VERIFICATION',
+    'PENDING_APPROVAL',
+    'ACTIVE',
+    'REJECTED',
+    'SUSPENDED'
+);
