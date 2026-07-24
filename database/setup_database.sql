@@ -57,3 +57,6 @@
 
 -- Notifications
 \i schema/33_notifications.sql
+
+\i indexes/authentication_indexes.sql
+\i indexes/course_management_indexes.sql
