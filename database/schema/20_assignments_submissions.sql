@@ -1,4 +1,4 @@
-CREATE TABLE assignment_submissions
+CREATE TABLE assignments_submissions
 (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 

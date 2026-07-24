@@ -34,7 +34,7 @@ ON learning_materials(lesson_id);
 
 -- Course Tags
 CREATE INDEX idx_course_tags_name
-ON course_tags(name);
+ON course_tags(tag_name);
 
 
 -- Course Tag Mapping
@@ -71,10 +71,10 @@ ON assignments(course_id);
 
 -- Assignment Submissions
 CREATE INDEX idx_assignment_submissions_assignment
-ON assignment_submissions(assignment_id);
+ON assignments_submissions(assignment_id);
 
 CREATE INDEX idx_assignment_submissions_student
-ON assignment_submissions(student_id);
+ON assignments_submissions(student_id);
 
 
 -- Quizzes

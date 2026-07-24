@@ -28,7 +28,7 @@
 
 -- Assignments
 \i schema/19_assignments.sql
-\i schema/20_assignment_submissions.sql
+\i schema/20_assignments_submissions.sql
 
 
 -- Quizzes
