@@ -1,0 +1,18 @@
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# Node Modules
+node_modules/
+
+# Environment Variables
+.env
+
+# PostgreSQL Backup Files
+*.backup
+
+# OS Files
+Thumbs.db
+.DS_Store
