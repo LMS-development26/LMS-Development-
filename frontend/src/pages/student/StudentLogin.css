@@ -1,0 +1,233 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, Helvetica, sans-serif;
+}
+
+.login-container{
+
+    height:100vh;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    background:#f7f4ff;
+
+}
+
+.login-card{
+
+    width:420px;
+
+    background:white;
+
+    padding:40px;
+
+    border-radius:18px;
+
+    box-shadow:0 10px 30px rgba(128,90,213,.15);
+
+}
+
+.logo{
+
+    width:70px;
+
+    height:70px;
+
+    background:#7c3aed;
+
+    border-radius:50%;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    margin:auto;
+
+    font-size:30px;
+
+    color:white;
+
+    margin-bottom:20px;
+
+}
+
+.login-card h1{
+
+    text-align:center;
+
+    color:#5b21b6;
+
+}
+
+.subtitle{
+
+    text-align:center;
+
+    color:#666;
+
+    margin:15px 0 30px;
+
+}
+
+.input-group{
+
+    margin-bottom:20px;
+
+}
+
+.input-group label{
+
+    display:block;
+
+    margin-bottom:8px;
+
+    color:#5b21b6;
+
+    font-weight:600;
+
+}
+
+.input-box{
+
+    display:flex;
+
+    align-items:center;
+
+    border:2px solid #ddd;
+
+    border-radius:10px;
+
+    padding:0 12px;
+
+}
+
+.input-box:focus-within{
+
+    border-color:#7c3aed;
+
+}
+
+.icon{
+
+    color:#7c3aed;
+
+}
+
+.input-box input{
+
+    flex:1;
+
+    border:none;
+
+    outline:none;
+
+    padding:14px;
+
+    font-size:15px;
+
+}
+
+.eye-btn{
+
+    background:none;
+
+    border:none;
+
+    cursor:pointer;
+
+    color:#7c3aed;
+
+}
+
+.login-options{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    font-size:14px;
+
+    margin-bottom:25px;
+
+}
+
+.login-options a{
+
+    color:#7c3aed;
+
+    text-decoration:none;
+
+}
+
+.login-btn{
+
+    width:100%;
+
+    padding:14px;
+
+    background:#7c3aed;
+
+    color:white;
+
+    border:none;
+
+    border-radius:10px;
+
+    font-size:17px;
+
+    cursor:pointer;
+
+    transition:.3s;
+
+}
+
+.login-btn:hover{
+
+    background:#5b21b6;
+
+}
+
+.signup-text{
+
+    text-align:center;
+
+    margin-top:25px;
+
+}
+
+.signup-text span{
+
+    color:#7c3aed;
+
+    font-weight:bold;
+
+    cursor:pointer;
+
+}
+
+.signup-link{
+    color:#6f42c1;
+    text-decoration:none;
+    font-weight:bold;
+}
+
+.signup-link:hover{
+    text-decoration:underline;
+}
+
+.error{
+    color:red;
+    font-size:13px;
+    margin-top:5px;
+    display:block;
+}

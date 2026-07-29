@@ -19,6 +19,10 @@ import { MeetingManagement } from '@/pages/instructor/MeetingManagement';
 import { CourseAnalytics } from '@/pages/instructor/CourseAnalytics';
 
 // Student pages
+import { StudentLogin } from '@/pages/student/StudentLogin';
+import { StudentDashboard } from '@/pages/student/StudentDashboard';
+import { StudentSignup } from "@/pages/student/StudentSignup";
+import { StudentEmailVerification } from "@/pages/student/StudentEmailVerification";
 import { CourseBrowse } from '@/pages/student/CourseBrowse';
 import { CourseDetails } from '@/pages/student/CourseDetails';
 import { MyCourses } from '@/pages/student/MyCourses';
@@ -70,9 +74,15 @@ function AppRoutes() {
         <Route path="students" element={<EnrolledStudents />} />
       </Route>
 
+      {/* Student Login */}
+      <Route path="/student/login" element={<StudentLogin />} />
+      <Route path="/student/signup" element={<StudentSignup />} />
+      <Route path="/student/email-verification" element={<StudentEmailVerification />} />
+    
       {/* Student routes */}
       <Route path="/student" element={<StudentLayout />}>
         <Route index element={<Navigate to="/student/courses" replace />} />
+        <Route path="dashboard" element={<StudentDashboard />} />
         <Route path="courses" element={<CourseBrowse />} />
         <Route path="courses/:courseId" element={<CourseDetails />} />
         <Route path="my-courses" element={<MyCourses />} />
