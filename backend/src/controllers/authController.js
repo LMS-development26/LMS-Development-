@@ -81,10 +81,14 @@ const login = async (req, res, next) => {
     const { email, password } = req.body;
 
     // Check if user exists
+
     const result = await query(
       'SELECT * FROM users WHERE email = $1',
       [email]
     );
+
+    console.log("Searching email:", email);
+    console.log("User found:", result.rows);
 
     if (result.rows.length === 0) {
       return res.status(401).json({
@@ -257,7 +261,12 @@ const switchUser = async (req, res, next) => {
       }
     });
   } catch (error) {
-    next(error);
+    console.error("REGISTER ERROR:", error);
+  return res.status(500).json({
+    success: false,
+    error: error.message,
+    detail: error.detail
+  });
   }
 };
 

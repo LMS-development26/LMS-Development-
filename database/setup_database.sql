@@ -4,7 +4,7 @@
 -- 02
 \i schema/02_enum_types.sql
 
--- Authentication
+-- Authenticatio n
 \i schema/03_users.sql
 \i schema/04_admin_profiles.sql
 \i schema/05_instructor_profiles.sql

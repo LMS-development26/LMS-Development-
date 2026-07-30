@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import InstructorLogin from "@/pages/instructor/InstructorLogin";import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { InstructorLayout } from '@/components/layouts/InstructorLayout';
 import { StudentLayout } from '@/components/layouts/StudentLayout';
@@ -73,6 +73,11 @@ function AppRoutes() {
         <Route path="enrollments" element={<EnrollmentManagement />} />
         <Route path="students" element={<EnrolledStudents />} />
       </Route>
+
+      {/* Instructor Login */}
+      <Route path="/instructor/login" element={<InstructorLogin />} />
+
+      
 
       {/* Student Login */}
       <Route path="/student/login" element={<StudentLogin />} />
