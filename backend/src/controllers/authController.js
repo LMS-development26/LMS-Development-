@@ -78,8 +78,11 @@ const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // Check if user exists using UserModel
-    const user = await UserModel.findByEmail(email);
+    // Check if user exists
+    const result = await query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    );
 
     if (!user) {
       return res.status(401).json({
@@ -292,7 +295,12 @@ const switchUser = async (req, res, next) => {
       }
     });
   } catch (error) {
-    next(error);
+    console.error("REGISTER ERROR:", error);
+  return res.status(500).json({
+    success: false,
+    error: error.message,
+    detail: error.detail
+  });
   }
 };
 

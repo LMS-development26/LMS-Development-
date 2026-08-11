@@ -42,27 +42,13 @@ const notFoundHandler = require('./middleware/notFoundHandler');
 
 const app = express();
 
-/* =========================
-   SECURITY MIDDLEWARE
-========================= */
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "blob:", "http://localhost:5000"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'", "http://localhost:5000"],
-      frameSrc: ["'none'"],
-    },
-  },
-  crossOriginEmbedderPolicy:
-    process.env.NODE_ENV === 'production'
-      ? { policy: "require-corp" }
-      : false,
+// Security middleware
+app.use(helmet());
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  credentials: true
 }));
 
 /* =========================

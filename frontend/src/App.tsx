@@ -1,11 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-
-const routerSettings = {
-  future: {
-    v7_startTransition: true,
-    v7_relativeSplatPath: true,
-  },
-};
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { InstructorLayout } from '@/components/layouts/InstructorLayout';
 import { StudentLayout } from '@/components/layouts/StudentLayout';
@@ -97,6 +90,11 @@ function AppRoutes() {
         <Route path="students" element={<EnrolledStudents />} />
       </Route>
 
+      {/* Instructor Login */}
+      <Route path="/instructor/login" element={<InstructorLogin />} />
+
+      
+
       {/* Student Login */}
       <Route path="/student/login" element={<StudentLogin />} />
       <Route path="/student/signup" element={<StudentSignup />} />
@@ -140,7 +138,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter future={routerSettings.future}>
+      <BrowserRouter >
         <AppRoutes />
       </BrowserRouter>
     </AuthProvider>

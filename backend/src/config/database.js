@@ -3,20 +3,29 @@ const { Pool } = require('pg');
 // Load environment variables
 require('dotenv').config();
 
-// Validate required environment variables
-if (!process.env.DB_HOST || !process.env.DB_NAME || !process.env.DB_USER || !process.env.DB_PASSWORD) {
-  throw new Error('Missing required database environment variables: DB_HOST, DB_NAME, DB_USER, DB_PASSWORD');
-}
-
 const pool = new Pool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME || 'lms_database',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'Nikki@3001',
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
   connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+});
+
+
+pool.query(`
+  SELECT
+    current_database() AS database,
+    current_schema() AS schema,
+    current_setting('search_path') AS search_path;
+`)
+.then(res => {
+  console.log("Database Info:", res.rows[0]);
+})
+.catch(err => {
+  console.error("Connection Test Error:", err);
 });
 
 // Test database connection

@@ -39,3 +39,5 @@ Thumbs.db
 # Build output
 dist/
 build/
+
+backend/.env
