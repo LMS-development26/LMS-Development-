@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, FileText, Upload, Download, Clock, Star, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, FileText, Upload, Clock, CheckCircle2, Star, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { courseApi, assignmentApi, submissionApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';

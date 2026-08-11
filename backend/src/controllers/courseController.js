@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, getClient } = require('../config/database');
 
 // Helper function to build course filters
 const buildCourseFilters = (filters) => {
@@ -31,6 +31,7 @@ const buildCourseFilters = (filters) => {
   } else if (filters.priceType === 'paid') {
     conditions.push(`c.price > 0`);
   }
+  // Note: 'all' or undefined means no price filter
 
   if (filters.search) {
     conditions.push(`(c.title ILIKE $${paramIndex++} OR c.subtitle ILIKE $${paramIndex++} OR c.description ILIKE $${paramIndex++})`);
@@ -41,88 +42,93 @@ const buildCourseFilters = (filters) => {
   return { conditions, params };
 };
 
-// Helper function to build sorting
-const buildSorting = (sortBy) => {
-  switch (sortBy) {
-    case 'popularity':
-      return 'ORDER BY c.enrollment_count DESC';
-    case 'newest':
-      return 'ORDER BY c.created_at DESC';
-    case 'rating':
-      return 'ORDER BY c.average_rating DESC NULLS LAST';
-    case 'price_low':
-      return 'ORDER BY c.price ASC';
-    case 'price_high':
-      return 'ORDER BY c.price DESC';
-    default:
-      return 'ORDER BY c.created_at DESC';
-  }
-};
+const VALID_PRICE_TYPES = ['all', 'free', 'paid'];
+const VALID_SORT_BY = ['newest', 'popularity', 'title', 'price_asc', 'price_desc'];
 
 // Get all courses with filters
 const listCourses = async (req, res, next) => {
   try {
+    const rawPriceType = req.query.priceType;
+    const rawSortBy = req.query.sortBy;
+
+    const priceType = rawPriceType && VALID_PRICE_TYPES.includes(String(rawPriceType))
+      ? String(rawPriceType)
+      : 'all';
+
+    const sortBy = rawSortBy && VALID_SORT_BY.includes(String(rawSortBy))
+      ? String(rawSortBy)
+      : 'newest';
+
     const filters = {
-      instructorId: req.query.instructorId,
-      status: req.query.status,
-      categoryId: req.query.categoryId,
-      language: req.query.language,
-      priceType: req.query.priceType,
-      search: req.query.search,
-      sortBy: req.query.sortBy
+      instructorId: req.query.instructorId || undefined,
+      status: req.query.status || undefined,
+      categoryId: req.query.categoryId || undefined,
+      language: req.query.language || undefined,
+      priceType: priceType === 'all' ? undefined : priceType,
+      search: req.query.search || undefined,
     };
 
     const { conditions, params } = buildCourseFilters(filters);
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const sorting = buildSorting(filters.sortBy);
+
+    let orderClause = 'ORDER BY c.created_at DESC';
+    if (sortBy === 'popularity') {
+      orderClause = 'ORDER BY enrollment_count DESC, c.created_at DESC';
+    } else if (sortBy === 'title') {
+      orderClause = 'ORDER BY c.title ASC';
+    } else if (sortBy === 'price_asc') {
+      orderClause = 'ORDER BY c.price ASC, c.created_at DESC';
+    } else if (sortBy === 'price_desc') {
+      orderClause = 'ORDER BY c.price DESC, c.created_at DESC';
+    }
 
     const queryText = `
-      SELECT c.*,
-        u.first_name || ' ' || u.last_name as instructor_name,
-        cat.name as category_name,
-        COALESCE(e.enrollment_count, 0) as enrollment_count,
-        COALESCE(r.average_rating, 0) as average_rating,
-        COALESCE(r.review_count, 0) as review_count
+      SELECT c.id, c.instructor_id, c.category_id, c.title, c.subtitle, c.description,
+        c.difficulty, c.language, c.thumbnail_url, c.promotional_video_url, c.price,
+        c.duration_hours, c.learning_outcomes, c.prerequisites, c.status,
+        c.created_at, c.updated_at,
+        ip.full_name as instructor_name,
+        cat.category_name,
+        COALESCE(enr.enrollment_count, 0) as enrollment_count,
+        COALESCE(rev.average_rating, 0) as average_rating,
+        COALESCE(rev.review_count, 0) as review_count
       FROM courses c
-      LEFT JOIN users u ON c.instructor_id = u.id
+      LEFT JOIN instructor_profiles ip ON c.instructor_id = ip.user_id
       LEFT JOIN course_categories cat ON c.category_id = cat.id
       LEFT JOIN (
-        SELECT course_id, COUNT(*) as enrollment_count
+        SELECT course_id, COUNT(*)::int as enrollment_count
         FROM enrollments
         GROUP BY course_id
-      ) e ON c.id = e.course_id
+      ) enr ON c.id = enr.course_id
       LEFT JOIN (
-        SELECT course_id, 
-               AVG(rating) as average_rating, 
-               COUNT(*) as review_count
+        SELECT course_id,
+          ROUND(AVG(rating)::numeric, 1) as average_rating,
+          COUNT(*)::int as review_count
         FROM course_reviews
         GROUP BY course_id
-      ) r ON c.id = r.course_id
+      ) rev ON c.id = rev.course_id
       ${whereClause}
-      ${sorting}
+      ${orderClause}
     `;
 
     const result = await query(queryText, params);
 
-    // Get tags for each course
-    const coursesWithTags = await Promise.all(
-      result.rows.map(async (course) => {
-        const tagsResult = await query(
-          `SELECT t.* FROM course_tags t
-           JOIN course_tag_mapping ctm ON t.id = ctm.tag_id
-           WHERE ctm.course_id = $1`,
-          [course.id]
-        );
-        return { ...course, tags: tagsResult.rows };
-      })
-    );
+    const coursesWithTags = result.rows.map(course => ({
+      ...course,
+      duration_minutes: course.duration_hours ? course.duration_hours * 60 : 0,
+      tags: [],
+    }));
 
-    res.json({
+    return res.json({
       success: true,
-      data: coursesWithTags
+      data: coursesWithTags,
     });
   } catch (error) {
-    next(error);
+    console.error('listCourses error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch courses',
+    });
   }
 };
 
@@ -132,27 +138,15 @@ const getCourse = async (req, res, next) => {
     const { id } = req.params;
 
     const courseResult = await query(
-      `SELECT c.*,
-        u.first_name || ' ' || u.last_name as instructor_name,
-        cat.name as category_name,
-        COALESCE(e.enrollment_count, 0) as enrollment_count,
-        COALESCE(r.average_rating, 0) as average_rating,
-        COALESCE(r.review_count, 0) as review_count
+      `SELECT c.id, c.instructor_id, c.category_id, c.title, c.subtitle, c.description,
+        c.difficulty, c.language, c.thumbnail_url, c.promotional_video_url, c.price,
+        c.duration_hours, c.learning_outcomes, c.prerequisites, c.status,
+        c.created_at, c.updated_at,
+        ip.full_name as instructor_name,
+        cat.category_name
       FROM courses c
-      LEFT JOIN users u ON c.instructor_id = u.id
+      LEFT JOIN instructor_profiles ip ON c.instructor_id = ip.user_id
       LEFT JOIN course_categories cat ON c.category_id = cat.id
-      LEFT JOIN (
-        SELECT course_id, COUNT(*) as enrollment_count
-        FROM enrollments
-        GROUP BY course_id
-      ) e ON c.id = e.course_id
-      LEFT JOIN (
-        SELECT course_id, 
-               AVG(rating) as average_rating, 
-               COUNT(*) as review_count
-        FROM course_reviews
-        GROUP BY course_id
-      ) r ON c.id = r.course_id
       WHERE c.id = $1`,
       [id]
     );
@@ -172,7 +166,14 @@ const getCourse = async (req, res, next) => {
       [id]
     );
 
-    const course = { ...courseResult.rows[0], tags: tagsResult.rows };
+    const course = {
+      ...courseResult.rows[0],
+      duration_minutes: courseResult.rows[0].duration_hours ? courseResult.rows[0].duration_hours * 60 : 0,
+      enrollment_count: 0,
+      average_rating: 0,
+      review_count: 0,
+      tags: tagsResult.rows
+    };
 
     res.json({
       success: true,
@@ -197,15 +198,15 @@ const createCourse = async (req, res, next) => {
       price,
       thumbnail_url,
       promotional_video_url,
-      duration_hours,
+      duration_minutes,
       learning_outcomes,
       prerequisites,
       status,
       tags
     } = req.body;
 
-    const client = await query('getClient');
-    
+    const client = await getClient();
+
     try {
       await client.query('BEGIN');
 
@@ -227,9 +228,9 @@ const createCourse = async (req, res, next) => {
           price || 0,
           thumbnail_url,
           promotional_video_url,
-          duration_hours,
-          learning_outcomes,
-          prerequisites,
+          duration_minutes ? Math.floor(duration_minutes / 60) : null,
+          learning_outcomes ? JSON.stringify(learning_outcomes) : null,
+          prerequisites ? JSON.stringify(prerequisites) : null,
           status || 'DRAFT'
         ]
       );
@@ -238,7 +239,8 @@ const createCourse = async (req, res, next) => {
 
       // Add tags if provided
       if (tags && tags.length > 0) {
-        for (const tagId of tags) {
+        for (const tag of tags) {
+          const tagId = typeof tag === 'object' ? tag.id : tag;
           await client.query(
             'INSERT INTO course_tag_mapping (course_id, tag_id) VALUES ($1, $2)',
             [course.id, tagId]
@@ -283,7 +285,7 @@ const updateCourse = async (req, res, next) => {
       tags
     } = req.body;
 
-    const client = await query('getClient');
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -414,7 +416,7 @@ const duplicateCourse = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const client = await query('getClient');
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -454,7 +456,7 @@ const duplicateCourse = async (req, res, next) => {
           original.price,
           original.thumbnail_url,
           original.promotional_video_url,
-          original.duration_hours,
+          original.duration_hours || null,
           original.learning_outcomes,
           original.prerequisites
         ]

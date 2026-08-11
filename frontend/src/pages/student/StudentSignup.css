@@ -10,7 +10,7 @@
     display:flex;
     justify-content:center;
     align-items:center;
-    background:linear-gradient(135deg,#ffffff,#ece3ff);
+    background: linear-gradient(to bottom right, #f3e8ff, #faf5ff, #ffffff);
 }
 
 .signup-card{
@@ -23,7 +23,7 @@
 
 .signup-card h1{
     text-align:center;
-    color:#6f42c1;
+    color:#7c3aed;
     margin-bottom:10px;
 }
 
@@ -61,7 +61,7 @@
     width:100%;
     padding:13px;
     margin-top:10px;
-    background:#6f42c1;
+    background:#7c3aed;
     color:white;
     border:none;
     border-radius:8px;
@@ -71,7 +71,7 @@
 }
 
 .signup-btn:hover{
-    background:#5d33b0;
+    background:#6d28d9;
 }
 
 .login-link{
@@ -82,7 +82,7 @@
 
 .login-link a{
     text-decoration:none;
-    color:#6f42c1;
+    color:#7c3aed;
     font-weight:bold;
 }
 

@@ -31,9 +31,10 @@ export function formatDuration(minutes: number | null | undefined): string {
   return `${h}h ${m}m`;
 }
 
-export function formatPrice(price: number): string {
-  if (price === 0) return 'Free';
-  return `$${price.toFixed(2)}`;
+export function formatPrice(price: number | string | null | undefined): string {
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+  if (!numPrice || numPrice === 0) return 'Free';
+  return `$${Number(numPrice).toFixed(2)}`;
 }
 
 export function formatFileSize(bytes: number | null | undefined): string {

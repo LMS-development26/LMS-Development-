@@ -3,7 +3,6 @@ import { adminApi } from '@/services/api';
 import { mockUsers } from '@/data/mockData';
 import { useAsync } from '@/hooks/useAsync';
 import { Card, Table, StatusBadge, LoadingState, EmptyState } from '@/components/ui';
-import { formatDate } from '@/utils/helpers';
 import type { InstructorProfile } from '@/types';
 
 export function AdminInstructors() {

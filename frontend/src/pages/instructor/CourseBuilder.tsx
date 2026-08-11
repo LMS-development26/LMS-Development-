@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
-  ArrowLeft, Plus, Pencil, Trash2, ChevronDown, ChevronRight, GripVertical,
+  ArrowLeft, Plus, Pencil, Trash2, ChevronDown, ChevronRight,
   FileVideo, FileText, File as FileIcon, Link as LinkIcon, Code, Download, Upload,
   X, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { courseApi, moduleApi, lessonApi, materialApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
 import { Card, Button, Modal, Input, Textarea, Select, LoadingState, EmptyState } from '@/components/ui';
-import { formatFileSize, classNames } from '@/utils/helpers';
+import { formatFileSize } from '@/utils/helpers';
 import type { CourseModule, Lesson, LearningMaterial, MaterialType } from '@/types';
 
 const materialTypes: { value: MaterialType; label: string; icon: React.ReactNode }[] = [
@@ -49,7 +49,7 @@ export function CourseBuilder() {
     type: 'VIDEO' as MaterialType, title: '', description: '', s3_url: '', external_url: '', file_size_bytes: 0, file_type: '',
   });
 
-  const loadModules = async () => {
+  const loadModules = useCallback(async () => {
     const mods = await moduleApi.listByCourse(courseId!);
     setModules(mods);
     for (const mod of mods) {
@@ -60,11 +60,11 @@ export function CourseBuilder() {
         setMaterialsByLesson((prev) => ({ ...prev, [lesson.id]: mats }));
       }
     }
-  };
+  }, [courseId]);
 
   useEffect(() => {
     if (courseId) loadModules();
-  }, [courseId]);
+  }, [courseId, loadModules]);
 
   if (courseLoading || !course) return <LoadingState />;
 

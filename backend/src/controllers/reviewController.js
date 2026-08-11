@@ -7,10 +7,11 @@ const getCourseReviews = async (req, res, next) => {
 
     const result = await query(
       `SELECT cr.*,
-        u.first_name || ' ' || u.last_name as student_name,
+        sp.full_name as student_name,
         u.email as student_email
       FROM course_reviews cr
       JOIN users u ON cr.student_id = u.id
+      JOIN student_profiles sp ON cr.student_id = sp.user_id
       WHERE cr.course_id = $1
       ORDER BY cr.created_at DESC`,
       [courseId]
@@ -32,10 +33,11 @@ const getReview = async (req, res, next) => {
 
     const result = await query(
       `SELECT cr.*,
-        u.first_name || ' ' || u.last_name as student_name,
+        sp.full_name as student_name,
         c.title as course_title
       FROM course_reviews cr
       JOIN users u ON cr.student_id = u.id
+      JOIN student_profiles sp ON cr.student_id = sp.user_id
       JOIN courses c ON cr.course_id = c.id
       WHERE cr.id = $1`,
       [id]
@@ -213,11 +215,39 @@ const getStudentReviews = async (req, res, next) => {
   }
 };
 
+// Get a student's review for a specific course
+const getReviewByCourseAndStudent = async (req, res, next) => {
+  try {
+    const { courseId, studentId } = req.params;
+
+    const result = await query(
+      `SELECT cr.*,
+        sp.full_name as student_name
+      FROM course_reviews cr
+      JOIN student_profiles sp ON cr.student_id = sp.user_id
+      WHERE cr.course_id = $1 AND cr.student_id = $2`,
+      [courseId, studentId]
+    );
+
+    return res.json({
+      success: true,
+      data: result.rows[0] || null,
+    });
+  } catch (error) {
+    console.error('getReviewByCourseAndStudent error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch review',
+    });
+  }
+};
+
 module.exports = {
   getCourseReviews,
   getReview,
   createReview,
   updateReview,
   deleteReview,
-  getStudentReviews
+  getStudentReviews,
+  getReviewByCourseAndStudent,
 };

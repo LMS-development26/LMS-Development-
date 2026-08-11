@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, FileQuestion, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight,
@@ -37,6 +37,22 @@ export function StudentQuizzes() {
     }
   }, [quizzes, user]);
 
+  const handleSubmit = useCallback(async () => {
+    if (!activeQuiz || !attempt) return;
+    let correct = 0;
+    for (const q of questions) {
+      const opts = optionsByQuestion[q.id] || [];
+      const correctOpts = opts.filter((o) => o.is_correct).map((o) => o.id);
+      const selected = answers[q.id] || [];
+      const isCorrect = correctOpts.length === selected.length && correctOpts.every((c) => selected.includes(c));
+      if (isCorrect) correct++;
+    }
+    const percentage = Math.round((correct / questions.length) * 100);
+    const passed = percentage >= activeQuiz.passing_percentage;
+    await quizAttemptApi.complete(attempt.id, percentage, passed);
+    setResult({ score: correct, passed, percentage });
+  }, [activeQuiz, attempt, questions, optionsByQuestion, answers]);
+
   // Timer
   useEffect(() => {
     if (activeQuiz && timeLeft > 0) {
@@ -48,7 +64,7 @@ export function StudentQuizzes() {
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [activeQuiz, timeLeft]);
+  }, [activeQuiz, timeLeft, handleSubmit]);
 
   if (loading) return <LoadingState />;
 
@@ -63,7 +79,7 @@ export function StudentQuizzes() {
     setOptionsByQuestion(optMap);
     setAnswers({});
     setCurrentQuestionIdx(0);
-    setTimeLeft((quiz.timer_minutes || 0) * 60);
+    setTimeLeft((quiz.time_limit_minutes || 0) * 60);
     setResult(null);
     setShowReview(false);
     const att = await quizAttemptApi.start(quiz.id, user!.id);
@@ -79,22 +95,6 @@ export function StudentQuizzes() {
       }
       return { ...prev, [questionId]: [optionId] };
     });
-  };
-
-  const handleSubmit = async () => {
-    if (!activeQuiz || !attempt) return;
-    let correct = 0;
-    for (const q of questions) {
-      const opts = optionsByQuestion[q.id] || [];
-      const correctOpts = opts.filter((o) => o.is_correct).map((o) => o.id);
-      const selected = answers[q.id] || [];
-      const isCorrect = correctOpts.length === selected.length && correctOpts.every((c) => selected.includes(c));
-      if (isCorrect) correct++;
-    }
-    const percentage = Math.round((correct / questions.length) * 100);
-    const passed = percentage >= activeQuiz.passing_percentage;
-    await quizAttemptApi.complete(attempt.id, percentage, passed);
-    setResult({ score: correct, passed, percentage });
   };
 
   const formatTime = (seconds: number) => {
@@ -116,7 +116,7 @@ export function StudentQuizzes() {
             <h1 className="text-xl font-bold text-gray-900">{activeQuiz.title}</h1>
             <p className="text-sm text-gray-500">Question {currentQuestionIdx + 1} of {questions.length}</p>
           </div>
-          {activeQuiz.timer_minutes && (
+          {activeQuiz.time_limit_minutes && (
             <div className={classNames('flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold', timeLeft < 60 ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600')}>
               <Clock className="h-4 w-4" /> {formatTime(timeLeft)}
             </div>
@@ -279,7 +279,7 @@ export function StudentQuizzes() {
                       {quiz.description && <p className="mt-1 text-sm text-gray-600">{quiz.description}</p>}
                       <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-500">
                         <span>Pass: {quiz.passing_percentage}%</span>
-                        <span>Timer: {quiz.timer_minutes ? `${quiz.timer_minutes}min` : 'No limit'}</span>
+                        <span>Timer: {quiz.time_limit_minutes ? `${quiz.time_limit_minutes}min` : 'No limit'}</span>
                         <span>Attempts: {quiz.attempt_limit}</span>
                         <span>{quiz.question_count || 0} questions</span>
                       </div>

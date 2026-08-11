@@ -7,23 +7,15 @@ const getUserNotifications = async (req, res, next) => {
     const { unread_only } = req.query;
 
     let queryText = `
-      SELECT n.*,
-        c.title as course_title,
-        a.title as assignment_title,
-        q.title as quiz_title,
-        m.title as meeting_title
+      SELECT n.*
       FROM notifications n
-      LEFT JOIN courses c ON n.course_id = c.id
-      LEFT JOIN assignments a ON n.assignment_id = a.id
-      LEFT JOIN quizzes q ON n.quiz_id = q.id
-      LEFT JOIN meetings m ON n.meeting_id = m.id
       WHERE n.user_id = $1
     `;
-    
+
     const params = [user_id];
 
     if (unread_only === 'true') {
-      queryText += ' AND n.read = false';
+      queryText += ' AND n.is_read = false';
     }
 
     queryText += ' ORDER BY n.created_at DESC';
@@ -45,16 +37,8 @@ const getNotification = async (req, res, next) => {
     const { id } = req.params;
 
     const result = await query(
-      `SELECT n.*,
-        c.title as course_title,
-        a.title as assignment_title,
-        q.title as quiz_title,
-        m.title as meeting_title
+      `SELECT n.*
       FROM notifications n
-      LEFT JOIN courses c ON n.course_id = c.id
-      LEFT JOIN assignments a ON n.assignment_id = a.id
-      LEFT JOIN quizzes q ON n.quiz_id = q.id
-      LEFT JOIN meetings m ON n.meeting_id = m.id
       WHERE n.id = $1`,
       [id]
     );
@@ -78,13 +62,13 @@ const getNotification = async (req, res, next) => {
 // Create notification
 const createNotification = async (req, res, next) => {
   try {
-    const { user_id, type, title, message, course_id, assignment_id, quiz_id, meeting_id } = req.body;
+    const { user_id, notification_type, title, message } = req.body;
 
     const result = await query(
-      `INSERT INTO notifications (user_id, type, title, message, course_id, assignment_id, quiz_id, meeting_id, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+      `INSERT INTO notifications (user_id, notification_type, title, message, created_at)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [user_id, type, title, message, course_id, assignment_id, quiz_id, meeting_id]
+      [user_id, notification_type, title, message]
     );
 
     res.status(201).json({
@@ -103,8 +87,7 @@ const markAsRead = async (req, res, next) => {
 
     const result = await query(
       `UPDATE notifications
-       SET read = true,
-           read_at = CURRENT_TIMESTAMP
+       SET is_read = true
        WHERE id = $1
        RETURNING *`,
       [id]
@@ -133,9 +116,8 @@ const markAllAsRead = async (req, res, next) => {
 
     const result = await query(
       `UPDATE notifications
-       SET read = true,
-           read_at = CURRENT_TIMESTAMP
-       WHERE user_id = $1 AND read = false
+       SET is_read = true
+       WHERE user_id = $1 AND is_read = false
        RETURNING *`,
       [user_id]
     );
@@ -184,7 +166,7 @@ const getUnreadCount = async (req, res, next) => {
     const user_id = req.params.userId || req.user.id;
 
     const result = await query(
-      'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND read = false',
+      'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND is_read = false',
       [user_id]
     );
 
@@ -202,16 +184,16 @@ const getUnreadCount = async (req, res, next) => {
 // Helper function to create notification for enrollment approval
 const createEnrollmentApprovalNotification = async (student_id, course_id, status) => {
   try {
-    const type = status === 'APPROVED' ? 'ENROLLMENT_APPROVED' : 'ENROLLMENT_REJECTED';
+    const notification_type = status === 'APPROVED' ? 'ENROLLMENT_APPROVED' : 'ENROLLMENT_REJECTED';
     const title = status === 'APPROVED' ? 'Enrollment Approved' : 'Enrollment Rejected';
-    const message = status === 'APPROVED' 
+    const message = status === 'APPROVED'
       ? 'Your enrollment request has been approved. You can now access the course.'
       : 'Your enrollment request has been rejected.';
 
     await query(
-      `INSERT INTO notifications (user_id, type, title, message, course_id, created_at)
-       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
-      [student_id, type, title, message, course_id]
+      `INSERT INTO notifications (user_id, notification_type, title, message, created_at)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
+      [student_id, notification_type, title, message]
     );
   } catch (error) {
     console.error('Error creating enrollment notification:', error);
@@ -219,10 +201,10 @@ const createEnrollmentApprovalNotification = async (student_id, course_id, statu
 };
 
 // Helper function to create notification for assignment
-const createAssignmentNotification = async (student_id, course_id, assignment_id, type) => {
+const createAssignmentNotification = async (student_id, type) => {
   try {
     let title, message;
-    
+
     switch (type) {
       case 'ASSIGNMENT_DEADLINE':
         title = 'Assignment Deadline Approaching';
@@ -238,9 +220,9 @@ const createAssignmentNotification = async (student_id, course_id, assignment_id
     }
 
     await query(
-      `INSERT INTO notifications (user_id, type, title, message, course_id, assignment_id, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`,
-      [student_id, type, title, message, course_id, assignment_id]
+      `INSERT INTO notifications (user_id, notification_type, title, message, created_at)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
+      [student_id, type, title, message]
     );
   } catch (error) {
     console.error('Error creating assignment notification:', error);
@@ -248,10 +230,10 @@ const createAssignmentNotification = async (student_id, course_id, assignment_id
 };
 
 // Helper function to create notification for quiz
-const createQuizNotification = async (student_id, course_id, quiz_id, type) => {
+const createQuizNotification = async (student_id, type) => {
   try {
     let title, message;
-    
+
     switch (type) {
       case 'QUIZ_RESULT':
         title = 'Quiz Result Available';
@@ -263,9 +245,9 @@ const createQuizNotification = async (student_id, course_id, quiz_id, type) => {
     }
 
     await query(
-      `INSERT INTO notifications (user_id, type, title, message, course_id, quiz_id, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`,
-      [student_id, type, title, message, course_id, quiz_id]
+      `INSERT INTO notifications (user_id, notification_type, title, message, created_at)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
+      [student_id, type, title, message]
     );
   } catch (error) {
     console.error('Error creating quiz notification:', error);
@@ -273,10 +255,10 @@ const createQuizNotification = async (student_id, course_id, quiz_id, type) => {
 };
 
 // Helper function to create notification for meeting
-const createMeetingNotification = async (student_id, course_id, meeting_id, type) => {
+const createMeetingNotification = async (student_id, type) => {
   try {
     let title, message;
-    
+
     switch (type) {
       case 'MEETING_UPCOMING':
         title = 'Upcoming Live Class';
@@ -288,9 +270,9 @@ const createMeetingNotification = async (student_id, course_id, meeting_id, type
     }
 
     await query(
-      `INSERT INTO notifications (user_id, type, title, message, course_id, meeting_id, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`,
-      [student_id, type, title, message, course_id, meeting_id]
+      `INSERT INTO notifications (user_id, notification_type, title, message, created_at)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
+      [student_id, type, title, message]
     );
   } catch (error) {
     console.error('Error creating meeting notification:', error);
@@ -298,13 +280,13 @@ const createMeetingNotification = async (student_id, course_id, meeting_id, type
 };
 
 // Helper function to create notification for course announcement
-const createCourseAnnouncementNotification = async (user_ids, course_id, title, message) => {
+const createCourseAnnouncementNotification = async (user_ids, title, message) => {
   try {
     for (const user_id of user_ids) {
       await query(
-        `INSERT INTO notifications (user_id, type, title, message, course_id, created_at)
-         VALUES ($1, 'COURSE_ANNOUNCEMENT', $2, $3, $4, CURRENT_TIMESTAMP)`,
-        [user_id, title, message, course_id]
+        `INSERT INTO notifications (user_id, notification_type, title, message, created_at)
+         VALUES ($1, 'COURSE_ANNOUNCEMENT', $2, $3, CURRENT_TIMESTAMP)`,
+        [user_id, title, message]
       );
     }
   } catch (error) {

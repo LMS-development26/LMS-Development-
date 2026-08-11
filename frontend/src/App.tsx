@@ -1,18 +1,32 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+
+const routerSettings = {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+  },
+};
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { InstructorLayout } from '@/components/layouts/InstructorLayout';
 import { StudentLayout } from '@/components/layouts/StudentLayout';
 import { AdminLayout } from '@/components/layouts/AdminLayout';
 import { LoadingState } from '@/components/ui';
 
+// Landing page
+import { LandingPage } from '@/pages/LandingPage';
+
 // Instructor pages
+import { InstructorLogin } from '@/pages/instructor/InstructorLogin';
+import { InstructorRegister } from '@/pages/instructor/InstructorRegister';
 import { InstructorDashboard } from '@/pages/instructor/InstructorDashboard';
 import { CourseManagement } from '@/pages/instructor/CourseManagement';
 import { CreateCourse } from '@/pages/instructor/CreateCourse';
 import { CourseDetail } from '@/pages/instructor/CourseDetail';
 import { CourseBuilder } from '@/pages/instructor/CourseBuilder';
 import { EnrollmentManagement } from '@/pages/instructor/EnrollmentManagement';
+import { GlobalEnrollmentRequests } from '@/pages/instructor/GlobalEnrollmentRequests';
 import { EnrolledStudents } from '@/pages/instructor/EnrolledStudents';
+import { GlobalEnrolledStudents } from '@/pages/instructor/GlobalEnrolledStudents';
 import { AssignmentManagement } from '@/pages/instructor/AssignmentManagement';
 import { QuizManagement } from '@/pages/instructor/QuizManagement';
 import { MeetingManagement } from '@/pages/instructor/MeetingManagement';
@@ -32,8 +46,11 @@ import { StudentQuizzes } from '@/pages/student/StudentQuizzes';
 import { StudentMeetings } from '@/pages/student/StudentMeetings';
 import { StudentProgress } from '@/pages/student/StudentProgress';
 import { StudentCertificate } from '@/pages/student/StudentCertificate';
+import { StudentCertificates } from '@/pages/student/StudentCertificates';
+import { Profile } from '@/pages/student/Profile';
 
 // Admin pages
+import { AdminLogin } from '@/pages/admin/AdminLogin';
 import { AdminDashboard } from '@/pages/admin/AdminDashboard';
 import { AdminCategories } from '@/pages/admin/AdminCategories';
 import { AdminUsers } from '@/pages/admin/AdminUsers';
@@ -45,15 +62,19 @@ function AppRoutes() {
 
   if (loading) return <LoadingState message="Loading LMS..." />;
 
-  const defaultRedirect = user?.role === 'ADMIN'
-    ? '/admin/dashboard'
-    : user?.role === 'INSTRUCTOR'
-      ? '/instructor/dashboard'
-      : '/student/courses';
-
   return (
     <Routes>
-      <Route path="/" element={<Navigate to={defaultRedirect} replace />} />
+      <Route path="/" element={user ? <Navigate to={
+        user?.role === 'ADMIN'
+          ? '/admin/dashboard'
+          : user?.role === 'INSTRUCTOR'
+            ? '/instructor/dashboard'
+            : '/student/dashboard'
+      } replace /> : <LandingPage />} />
+
+      {/* Instructor Auth */}
+      <Route path="/instructor/login" element={<InstructorLogin />} />
+      <Route path="/instructor/register" element={<InstructorRegister />} />
 
       {/* Instructor routes */}
       <Route path="/instructor" element={<InstructorLayout />}>
@@ -70,6 +91,8 @@ function AppRoutes() {
         <Route path="courses/:courseId/quizzes" element={<QuizManagement />} />
         <Route path="courses/:courseId/meetings" element={<MeetingManagement />} />
         <Route path="courses/:courseId/analytics" element={<CourseAnalytics />} />
+        <Route path="enrollment-requests" element={<GlobalEnrollmentRequests />} />
+        <Route path="enrolled-students" element={<GlobalEnrolledStudents />} />
         <Route path="enrollments" element={<EnrollmentManagement />} />
         <Route path="students" element={<EnrolledStudents />} />
       </Route>
@@ -92,8 +115,12 @@ function AppRoutes() {
         <Route path="courses/:courseId/meetings" element={<StudentMeetings />} />
         <Route path="courses/:courseId/progress" element={<StudentProgress />} />
         <Route path="courses/:courseId/certificate" element={<StudentCertificate />} />
-        <Route path="certificate" element={<MyCourses />} />
+        <Route path="certificate" element={<StudentCertificates />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
+
+      {/* Admin Auth */}
+      <Route path="/admin/login" element={<AdminLogin />} />
 
       {/* Admin routes */}
       <Route path="/admin" element={<AdminLayout />}>
@@ -113,7 +140,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter future={routerSettings.future}>
         <AppRoutes />
       </BrowserRouter>
     </AuthProvider>

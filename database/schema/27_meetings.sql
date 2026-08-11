@@ -10,15 +10,19 @@ CREATE TABLE meetings
 
     description TEXT,
 
-    meeting_link TEXT,
+    meeting_date DATE NOT NULL,
 
-    scheduled_start TIMESTAMP NOT NULL,
+    start_time TIME NOT NULL,
 
-    scheduled_end TIMESTAMP,
+    end_time TIME NOT NULL,
+
+    google_meet_link TEXT,
 
     recording_url TEXT,
 
-    notes_url TEXT,
+    notes TEXT,
+
+    status VARCHAR(20) DEFAULT 'SCHEDULED',
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 

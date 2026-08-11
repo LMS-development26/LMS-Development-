@@ -1,7 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
-const { protect } = require('../middleware/auth');
+const { protect } = require('../middleware/authMiddleware');
 const { handleValidationErrors } = require('../middleware/validation');
 
 const router = express.Router();
@@ -10,8 +10,11 @@ const router = express.Router();
 const registerValidation = [
   body('email').isEmail().withMessage('Please provide a valid email'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('full_name').notEmpty().withMessage('Full name is required'),
-  body('role').optional().isIn(['STUDENT', 'INSTRUCTOR', 'ADMIN']).withMessage('Invalid role')
+  body('firstName').notEmpty().withMessage('First name is required'),
+  body('lastName').notEmpty().withMessage('Last name is required'),
+  body('role').optional().isIn(['STUDENT', 'INSTRUCTOR', 'ADMIN']).withMessage('Invalid role'),
+  body('expertise').optional().isString(),
+  body('bio').optional().isString()
 ];
 
 const loginValidation = [

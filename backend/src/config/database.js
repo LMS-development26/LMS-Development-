@@ -3,12 +3,17 @@ const { Pool } = require('pg');
 // Load environment variables
 require('dotenv').config();
 
+// Validate required environment variables
+if (!process.env.DB_HOST || !process.env.DB_NAME || !process.env.DB_USER || !process.env.DB_PASSWORD) {
+  throw new Error('Missing required database environment variables: DB_HOST, DB_NAME, DB_USER, DB_PASSWORD');
+}
+
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST,
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'lms_database',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'Nikki@3001',
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
   connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
@@ -16,7 +21,9 @@ const pool = new Pool({
 
 // Test database connection
 pool.on('connect', () => {
-  console.log('Connected to PostgreSQL database');
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Connected to PostgreSQL database');
+  }
 });
 
 pool.on('error', (err) => {
@@ -30,7 +37,9 @@ const query = async (text, params) => {
   try {
     const result = await pool.query(text, params);
     const duration = Date.now() - start;
-    console.log('Executed query', { text: text.substring(0, 50), duration, rows: result.rowCount });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Executed query', { text: text.substring(0, 50), duration, rows: result.rowCount });
+    }
     return result;
   } catch (error) {
     console.error('Database query error:', error);

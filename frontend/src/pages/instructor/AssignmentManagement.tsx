@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
-  ArrowLeft, Plus, Pencil, Trash2, FileText, Download, Star, MessageSquare, Eye,
+  ArrowLeft, Plus, Pencil, Trash2, FileText, Download, Star, Eye,
 } from 'lucide-react';
 import { courseApi, assignmentApi, submissionApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';

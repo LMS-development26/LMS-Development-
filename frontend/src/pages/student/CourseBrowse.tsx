@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, SlidersHorizontal, Star, Users, Clock, BookOpen } from 'lucide-react';
+import { Search, SlidersHorizontal, Users, Clock, BookOpen } from 'lucide-react';
 import { courseApi, categoryApi, tagApi } from '@/services/api';
 import { mockInstructorProfiles } from '@/data/mockData';
 import { useAsync } from '@/hooks/useAsync';
-import { Card, Input, Select, StarRating, LoadingState, EmptyState, Button } from '@/components/ui';
+import { Card, Select, StarRating, LoadingState, EmptyState, Button } from '@/components/ui';
 import { formatPrice, formatDuration, classNames } from '@/utils/helpers';
 
 export function CourseBrowse() {
@@ -14,13 +14,12 @@ export function CourseBrowse() {
   const [instructorId, setInstructorId] = useState('');
   const [priceType, setPriceType] = useState<'all' | 'free' | 'paid'>('all');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<'popularity' | 'newest' | 'rating' | 'price_low' | 'price_high'>('popularity');
   const [showFilters, setShowFilters] = useState(false);
 
   const { data: courses, loading } = useAsync(() => courseApi.list({
     search, categoryId: categoryId || undefined, language: language || undefined,
-    priceType, tagIds: selectedTags.length > 0 ? selectedTags : undefined, sortBy,
-  }), [search, categoryId, language, priceType, selectedTags, sortBy]);
+    priceType, tagIds: selectedTags.length > 0 ? selectedTags : undefined,
+  }), [search, categoryId, language, priceType, selectedTags]);
 
   const { data: categories } = useAsync(() => categoryApi.list(), []);
   const { data: tags } = useAsync(() => tagApi.list(), []);
@@ -101,16 +100,6 @@ export function CourseBrowse() {
               ))}
             </div>
           </div>
-          <div className="mt-4">
-            <label className="mb-2 block text-sm font-medium text-gray-700">Sort By</label>
-            <Select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
-              <option value="popularity">Most Popular</option>
-              <option value="newest">Newest</option>
-              <option value="rating">Highest Rated</option>
-              <option value="price_low">Price: Low to High</option>
-              <option value="price_high">Price: High to Low</option>
-            </Select>
-          </div>
         </Card>
       )}
 
@@ -138,7 +127,7 @@ export function CourseBrowse() {
                       <span className="text-xs text-gray-400">({course.review_count})</span>
                     </div>
                     <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-                      <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {course.enrollment_count}</span>
+                      <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {course.enrollment_count || 0}</span>
                       <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {formatDuration(course.duration_minutes)}</span>
                     </div>
                     <div className="mt-3 flex items-center justify-between">

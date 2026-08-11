@@ -1,10 +1,10 @@
 import { useParams, Link } from 'react-router-dom';
 import {
-  ArrowLeft, Users, TrendingUp, Star, Award, FileText, FileQuestion, Video, BarChart3,
+  ArrowLeft, Users, TrendingUp, Award, FileText, FileQuestion, Video, BarChart3,
 } from 'lucide-react';
-import { courseApi, enrollmentApi, assignmentApi, quizApi, meetingApi, reviewApi, quizResultApi } from '@/services/api';
+import { courseApi, enrollmentApi, assignmentApi, quizApi, meetingApi, reviewApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
-import { Card, CardHeader, CardBody, StatCard, ProgressBar, StarRating, LoadingState } from '@/components/ui';
+import { Card, CardHeader, CardBody, StatCard, StarRating, LoadingState } from '@/components/ui';
 import { formatPrice } from '@/utils/helpers';
 
 export function CourseAnalytics() {
@@ -81,7 +81,7 @@ export function CourseAnalytics() {
           <CardBody>
             <div className="flex items-center gap-6">
               <div className="text-center">
-                <p className="text-4xl font-bold text-gray-900">{course.average_rating?.toFixed(1) || '0.0'}</p>
+                <p className="text-4xl font-bold text-gray-900">{(typeof course.average_rating === 'number' ? course.average_rating : parseFloat(course.average_rating) || 0).toFixed(1)}</p>
                 <StarRating rating={course.average_rating || 0} size="md" />
                 <p className="mt-1 text-xs text-gray-500">{reviews?.length || 0} reviews</p>
               </div>

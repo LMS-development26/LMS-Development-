@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, getClient } = require('../config/database');
 
 // Get meetings by course
 const getMeetingsByCourse = async (req, res, next) => {
@@ -58,12 +58,13 @@ const getMeeting = async (req, res, next) => {
 const createMeeting = async (req, res, next) => {
   try {
     const { course_id, title, description, meeting_date, start_time, end_time, google_meet_link } = req.body;
+    const instructor_id = req.user.id;
 
     const result = await query(
-      `INSERT INTO meetings (course_id, title, description, meeting_date, start_time, end_time, google_meet_link, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'SCHEDULED', CURRENT_TIMESTAMP)
+      `INSERT INTO meetings (course_id, instructor_id, title, description, meeting_date, start_time, end_time, google_meet_link, status, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'SCHEDULED', CURRENT_TIMESTAMP)
        RETURNING *`,
-      [course_id, title, description, meeting_date, start_time, end_time, google_meet_link]
+      [course_id, instructor_id, title, description, meeting_date, start_time, end_time, google_meet_link]
     );
 
     res.status(201).json({
@@ -118,7 +119,7 @@ const deleteMeeting = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const client = await query('getClient');
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -167,10 +168,11 @@ const getAttendance = async (req, res, next) => {
 
     const result = await query(
       `SELECT ma.*,
-        u.first_name || ' ' || u.last_name as student_name,
+        sp.full_name as student_name,
         u.email as student_email
       FROM meeting_attendance ma
       JOIN users u ON ma.student_id = u.id
+      JOIN student_profiles sp ON ma.student_id = sp.user_id
       WHERE ma.meeting_id = $1
       ORDER BY ma.joined_at ASC`,
       [meetingId]

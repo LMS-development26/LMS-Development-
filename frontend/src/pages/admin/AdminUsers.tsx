@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Users, Search, Trash2 } from 'lucide-react';
 import { adminApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
-import { Card, Button, Table, StatusBadge, Modal, Input, Select, LoadingState, EmptyState } from '@/components/ui';
+import { Card, Button, Table, StatusBadge, Modal, Select, LoadingState, EmptyState } from '@/components/ui';
 import { formatDate, initials } from '@/utils/helpers';
 import type { User } from '@/types';
 

@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Play, CheckCircle2, Circle, FileVideo, FileText, Link as LinkIcon,
-  Code, Download, ChevronDown, ChevronRight, ChevronLeft, Clock, Award, Menu, X,
+  Code, Download, ChevronDown, ChevronRight, ChevronLeft, Clock, Award, Menu,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import {
-  courseApi, moduleApi, lessonApi, materialApi, lessonProgressApi, progressApi, certificateApi,
+  courseApi, moduleApi, lessonApi, materialApi, lessonProgressApi, progressApi,
 } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
 import { Card, Button, ProgressBar, LoadingState } from '@/components/ui';
@@ -39,7 +39,7 @@ export function LearningPage() {
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const mods = await moduleApi.listByCourse(courseId!);
     setModules(mods);
     const lMap: Record<string, Lesson[]> = {};
@@ -61,9 +61,9 @@ export function LearningPage() {
       setCurrentLessonId(lMap[mods[0].id][0].id);
       setExpandedModules(new Set([mods[0].id]));
     }
-  };
+  }, [courseId, user?.id, currentLessonId]);
 
-  useEffect(() => { if (courseId && user) loadData(); }, [courseId, user]);
+  useEffect(() => { if (courseId && user) loadData(); }, [courseId, user, loadData]);
 
   if (courseLoading || !course) return <LoadingState />;
 

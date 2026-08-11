@@ -1,6 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Video, Clock, FileText, Play, Calendar } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { ArrowLeft, Video, Clock, Play, Calendar } from 'lucide-react';
 import { courseApi, meetingApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
 import { Card, CardBody, Button, StatusBadge, LoadingState, EmptyState } from '@/components/ui';
@@ -8,7 +7,6 @@ import { formatDate } from '@/utils/helpers';
 
 export function StudentMeetings() {
   const { courseId } = useParams<{ courseId: string }>();
-  const { user } = useAuth();
   const { data: course } = useAsync(() => courseApi.getById(courseId!), [courseId]);
   const { data: meetings, loading } = useAsync(() => meetingApi.listByCourse(courseId!), [courseId]);
 

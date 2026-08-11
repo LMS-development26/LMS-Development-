@@ -1,0 +1,8 @@
+workspace:
+  id: dda865b7-70d6-4795-aeeb-7b4de3582517
+localResources:
+  collections:
+    - ../LMS_Instructor_APIs.postman_collection.json
+cloudResources:
+  collections:
+    ../LMS_Instructor_APIs.postman_collection.json: 54085354-3ac91b03-3c9b-418f-a5f5-0f26ea04cd20

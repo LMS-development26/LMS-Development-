@@ -1,11 +1,9 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import type { User } from "@/types";
-import { authApi } from "@/services/api";
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  switchUser: (userId: string) => Promise<void>;
   login: (userData: User) => void;
   logout: () => void;
 }
@@ -17,24 +15,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    authApi
-      .getCurrentUser()
-      .then((u) => {
-        setUser(u);
-      })
-      .catch(() => {
-        setUser(null);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    // Check if user is stored in localStorage
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        localStorage.removeItem("user");
+      }
+    }
+    setLoading(false);
   }, []);
-
-  const switchUser = async (userId: string) => {
-    const u = await authApi.switchUser(userId);
-    setUser(u);
-    localStorage.setItem("user", JSON.stringify(u));
-  };
 
   const login = (userData: User) => {
     setUser(userData);
@@ -44,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem("user");
+    localStorage.removeItem("lms_token"); // Clear JWT token on logout
   };
 
   return (
@@ -51,7 +43,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         loading,
-        switchUser,
         login,
         logout,
       }}
@@ -61,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
 
   if (!ctx) {

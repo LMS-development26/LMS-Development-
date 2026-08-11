@@ -7,9 +7,15 @@ const listCategories = async (req, res, next) => {
       'SELECT * FROM course_categories ORDER BY category_name'
     );
 
+    // Map category_name to name for frontend compatibility
+    const categories = result.rows.map(cat => ({
+      ...cat,
+      name: cat.category_name
+    }));
+
     res.json({
       success: true,
-      data: result.rows
+      data: categories
     });
   } catch (error) {
     next(error);
@@ -33,9 +39,15 @@ const getCategory = async (req, res, next) => {
       });
     }
 
+    // Map category_name to name for frontend compatibility
+    const category = {
+      ...result.rows[0],
+      name: result.rows[0].category_name
+    };
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: category
     });
   } catch (error) {
     next(error);
@@ -45,18 +57,26 @@ const getCategory = async (req, res, next) => {
 // Create new category
 const createCategory = async (req, res, next) => {
   try {
-    const { category_name, description } = req.body;
+    // Handle both name and category_name for frontend compatibility
+    const { name, category_name, description } = req.body;
+    const finalCategoryName = name || category_name;
 
     const result = await query(
       `INSERT INTO course_categories (category_name, description, created_at)
        VALUES ($1, $2, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [category_name, description]
+      [finalCategoryName, description]
     );
+
+    // Map category_name to name for frontend compatibility
+    const category = {
+      ...result.rows[0],
+      name: result.rows[0].category_name
+    };
 
     res.status(201).json({
       success: true,
-      data: result.rows[0]
+      data: category
     });
   } catch (error) {
     next(error);
@@ -67,7 +87,9 @@ const createCategory = async (req, res, next) => {
 const updateCategory = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { category_name, description } = req.body;
+    // Handle both name and category_name for frontend compatibility
+    const { name, category_name, description } = req.body;
+    const finalCategoryName = name || category_name;
 
     const result = await query(
       `UPDATE course_categories
@@ -75,7 +97,7 @@ const updateCategory = async (req, res, next) => {
            description = COALESCE($2, description)
        WHERE id = $3
        RETURNING *`,
-      [category_name, description, id]
+      [finalCategoryName, description, id]
     );
 
     if (result.rows.length === 0) {
@@ -85,9 +107,15 @@ const updateCategory = async (req, res, next) => {
       });
     }
 
+    // Map category_name to name for frontend compatibility
+    const category = {
+      ...result.rows[0],
+      name: result.rows[0].category_name
+    };
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: category
     });
   } catch (error) {
     next(error);

@@ -4,25 +4,27 @@ import {
   Plus, Eye, Pencil, Copy, Globe, Archive, Trash2, BookOpen, MoreVertical, Upload,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { courseApi } from '@/services/api';
-import { mockInstructorProfiles } from '@/data/mockData';
+import { courseApi, categoryApi, authApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
-import { Button, Card, StatusBadge, Modal, Input, EmptyState, LoadingState } from '@/components/ui';
+import { Button, Card, StatusBadge, Modal, Input, EmptyState, LoadingState, Select } from '@/components/ui';
 import { formatDate, formatPrice, classNames } from '@/utils/helpers';
-import type { Course, CourseStatus } from '@/types';
+import type { Course, CourseStatus, InstructorProfile } from '@/types';
 
 export function CourseManagement() {
   const { user } = useAuth();
-  const instructorProfile = mockInstructorProfiles.find((p) => p.user_id === user?.id);
+  const { data: instructorProfile } = useAsync(() => user?.id ? authApi.getInstructorProfile(user.id) : Promise.resolve(null), [user?.id]);
 
-  const { data: courses, loading, refetch } = useAsync(() => courseApi.list({ instructorId: instructorProfile?.id }), [instructorProfile?.id]);
+  const { data: courses, loading, refetch } = useAsync(() => courseApi.list({ instructorId: instructorProfile?.user_id }), [instructorProfile?.user_id]);
+  const { data: categories } = useAsync(() => categoryApi.list(), []);
   const [statusFilter, setStatusFilter] = useState<CourseStatus | 'ALL'>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [search, setSearch] = useState('');
   const [deleteModal, setDeleteModal] = useState<Course | null>(null);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
 
   const filtered = (courses || []).filter((c) => {
     if (statusFilter !== 'ALL' && c.status !== statusFilter) return false;
+    if (categoryFilter !== 'ALL' && c.category_id !== categoryFilter) return false;
     if (search && !c.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -77,13 +79,25 @@ export function CourseManagement() {
             </button>
           ))}
         </div>
-        <Input
-          type="text"
-          placeholder="Search courses..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="sm:w-64"
-        />
+        <div className="flex gap-2">
+          <Select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="sm:w-48"
+          >
+            <option value="ALL">All Categories</option>
+            {categories?.map((cat) => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </Select>
+          <Input
+            type="text"
+            placeholder="Search courses..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="sm:w-64"
+          />
+        </div>
       </div>
 
       {/* Course grid */}
@@ -110,7 +124,7 @@ export function CourseManagement() {
                 <p className="line-clamp-1 text-base font-semibold text-gray-900">{course.title}</p>
                 <p className="mt-1 text-xs text-gray-500">{course.category_name}</p>
                 <div className="mt-3 flex items-center justify-between text-sm">
-                  <span className="text-gray-600">{course.enrollment_count} students</span>
+                  <span className="text-gray-600">{course.enrollment_count || 0} students</span>
                   <span className="font-semibold text-gray-900">{formatPrice(course.price)}</span>
                 </div>
                 <p className="mt-2 text-xs text-gray-400">Created {formatDate(course.created_at)}</p>

@@ -82,26 +82,34 @@ const updateLessonProgress = async (req, res, next) => {
       const progressId = existingProgress.rows[0].id;
       result = await query(
         `UPDATE lesson_progress
-         SET completed = COALESCE($1, completed),
-             completed_at = CASE WHEN $1 = true AND completed = false THEN CURRENT_TIMESTAMP ELSE completed_at END,
-             time_spent_minutes = time_spent_minutes + COALESCE($2, 0),
-             last_accessed_at = CURRENT_TIMESTAMP
-         WHERE id = $3
+         SET completion_status = COALESCE($1, completion_status),
+             completed_at = CASE WHEN $1 = true AND completion_status = false THEN CURRENT_TIMESTAMP ELSE completed_at END,
+             last_accessed = CURRENT_TIMESTAMP
+         WHERE id = $2
          RETURNING *`,
-        [completed, time_spent_minutes, progressId]
+        [completed, progressId]
       );
     } else {
       // Create new progress
       result = await query(
-        `INSERT INTO lesson_progress (lesson_id, student_id, completed, completed_at, time_spent_minutes, last_accessed_at)
-         VALUES ($1, $2, $3, CASE WHEN $3 = true THEN CURRENT_TIMESTAMP ELSE NULL END, $4, CURRENT_TIMESTAMP)
+        `INSERT INTO lesson_progress (lesson_id, student_id, completion_status, completed_at, last_accessed)
+         VALUES ($1, $2, $3, CASE WHEN $3 = true THEN CURRENT_TIMESTAMP ELSE NULL END, CURRENT_TIMESTAMP)
          RETURNING *`,
-        [lesson_id, student_id, completed || false, time_spent_minutes || 0]
+        [lesson_id, student_id, completed || false]
       );
     }
 
     // Update course progress
-    await updateCourseProgress(lesson_id, student_id);
+    const lessonResult = await query(
+      `SELECT m.course_id FROM lessons l
+       JOIN course_modules m ON l.module_id = m.id
+       WHERE l.id = $1`,
+      [lesson_id]
+    );
+
+    if (lessonResult.rows.length > 0) {
+      await updateCourseProgress(lessonResult.rows[0].course_id, student_id);
+    }
 
     res.json({
       success: true,
@@ -113,26 +121,26 @@ const updateLessonProgress = async (req, res, next) => {
 };
 
 // Helper function to update course progress
-const updateCourseProgress = async (lesson_id, student_id) => {
+const updateCourseProgress = async (course_id, student_id) => {
   try {
     // Get course_id from lesson
     const lessonResult = await query(
       `SELECT m.course_id FROM lessons l
        JOIN course_modules m ON l.module_id = m.id
        WHERE l.id = $1`,
-      [lesson_id]
+      [course_id]
     );
 
     if (lessonResult.rows.length === 0) return;
 
-    const course_id = lessonResult.rows[0].course_id;
+    const course_id_final = lessonResult.rows[0].course_id;
 
     // Get total lessons in course
     const totalLessonsResult = await query(
       `SELECT COUNT(*) as total FROM lessons l
        JOIN course_modules m ON l.module_id = m.id
        WHERE m.course_id = $1`,
-      [course_id]
+      [course_id_final]
     );
 
     const total_lessons = parseInt(totalLessonsResult.rows[0].total);
@@ -142,22 +150,14 @@ const updateCourseProgress = async (lesson_id, student_id) => {
       `SELECT COUNT(*) as completed FROM lesson_progress lp
        JOIN lessons l ON lp.lesson_id = l.id
        JOIN course_modules m ON l.module_id = m.id
-       WHERE m.course_id = $1 AND lp.student_id = $2 AND lp.completed = true`,
-      [course_id, student_id]
+       WHERE m.course_id = $1 AND lp.student_id = $2 AND lp.completion_status = true`,
+      [course_id_final, student_id]
     );
 
     const completed_lessons = parseInt(completedLessonsResult.rows[0].completed);
 
-    // Get total learning time
-    const totalTimeResult = await query(
-      `SELECT COALESCE(SUM(time_spent_minutes), 0) as total FROM lesson_progress lp
-       JOIN lessons l ON lp.lesson_id = l.id
-       JOIN course_modules m ON l.module_id = m.id
-       WHERE m.course_id = $1 AND lp.student_id = $2`,
-      [course_id, student_id]
-    );
-
-    const total_learning_time_minutes = parseInt(totalTimeResult.rows[0].total);
+    // Get total learning time (set to 0 for now since time_spent_minutes doesn't exist in schema)
+    const total_learning_time_minutes = 0;
 
     // Calculate progress percentage
     const progress_percentage = total_lessons > 0 ? (completed_lessons / total_lessons) * 100 : 0;
@@ -168,27 +168,24 @@ const updateCourseProgress = async (lesson_id, student_id) => {
     // Update or create course progress
     const existingCourseProgress = await query(
       'SELECT id FROM course_progress WHERE course_id = $1 AND student_id = $2',
-      [course_id, student_id]
+      [course_id_final, student_id]
     );
 
     if (existingCourseProgress.rows.length > 0) {
       const progressId = existingCourseProgress.rows[0].id;
       await query(
         `UPDATE course_progress
-         SET completed_lessons = $1,
-             total_lessons = $2,
-             progress_percentage = $3,
-             total_learning_time_minutes = $4,
-             completed_at = CASE WHEN $5 = true AND completed_at IS NULL THEN CURRENT_TIMESTAMP ELSE completed_at END,
-             last_accessed_at = CURRENT_TIMESTAMP
-         WHERE id = $6`,
-        [completed_lessons, total_lessons, progress_percentage, total_learning_time_minutes, is_completed, progressId]
+         SET progress_percentage = $1,
+             total_learning_time = $2,
+             completion_date = CASE WHEN $3 = true AND completion_date IS NULL THEN CURRENT_TIMESTAMP ELSE completion_date END
+         WHERE id = $4`,
+        [progress_percentage, total_learning_time_minutes, is_completed, progressId]
       );
     } else {
       await query(
-        `INSERT INTO course_progress (course_id, student_id, completed_lessons, total_lessons, progress_percentage, total_learning_time_minutes, completed_at, last_accessed_at)
-         VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $7 = true THEN CURRENT_TIMESTAMP ELSE NULL END, CURRENT_TIMESTAMP)`,
-        [course_id, student_id, completed_lessons, total_lessons, progress_percentage, total_learning_time_minutes, is_completed]
+        `INSERT INTO course_progress (course_id, student_id, progress_percentage, total_learning_time, completion_date)
+         VALUES ($1, $2, $3, $4, CASE WHEN $5 = true THEN CURRENT_TIMESTAMP ELSE NULL END)`,
+        [course_id_final, student_id, progress_percentage, total_learning_time_minutes, is_completed]
       );
     }
   } catch (error) {
@@ -238,12 +235,12 @@ const getStudentProgress = async (req, res, next) => {
         c.title as course_title,
         c.thumbnail_url,
         c.difficulty,
-        u.first_name || ' ' || u.last_name as instructor_name
+        ip.full_name as instructor_name
       FROM course_progress cp
       JOIN courses c ON cp.course_id = c.id
-      JOIN users u ON c.instructor_id = u.id
+      JOIN instructor_profiles ip ON c.instructor_id = ip.user_id
       WHERE cp.student_id = $1
-      ORDER BY cp.last_accessed_at DESC`,
+      ORDER BY cp.completion_date DESC NULLS LAST`,
       [student_id]
     );
 
@@ -263,10 +260,11 @@ const getCourseProgressOverview = async (req, res, next) => {
 
     const result = await query(
       `SELECT cp.*,
-        u.first_name || ' ' || u.last_name as student_name,
+        sp.full_name as student_name,
         u.email as student_email
       FROM course_progress cp
       JOIN users u ON cp.student_id = u.id
+      JOIN student_profiles sp ON cp.student_id = sp.user_id
       WHERE cp.course_id = $1
       ORDER BY cp.progress_percentage DESC`,
       [courseId]
@@ -305,8 +303,23 @@ const resetLessonProgress = async (req, res, next) => {
       });
     }
 
-    // Update course progress
-    await updateCourseProgress(lessonId, student_id);
+    // Get course_id from lesson
+    const lessonResult = await query(
+      'SELECT module_id FROM lessons WHERE id = $1',
+      [lessonId]
+    );
+
+    if (lessonResult.rows.length > 0) {
+      const moduleResult = await query(
+        'SELECT course_id FROM course_modules WHERE id = $1',
+        [lessonResult.rows[0].module_id]
+      );
+
+      if (moduleResult.rows.length > 0) {
+        // Update course progress
+        await updateCourseProgress(moduleResult.rows[0].course_id, student_id);
+      }
+    }
 
     res.json({
       success: true,

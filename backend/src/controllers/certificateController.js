@@ -9,10 +9,10 @@ const getStudentCertificates = async (req, res, next) => {
       `SELECT cert.*,
         c.title as course_title,
         c.thumbnail_url,
-        u.first_name || ' ' || u.last_name as instructor_name
+        ip.full_name as instructor_name
       FROM certificates cert
       JOIN courses c ON cert.course_id = c.id
-      JOIN users u ON c.instructor_id = u.id
+      JOIN instructor_profiles ip ON c.instructor_id = ip.user_id
       WHERE cert.student_id = $1
       ORDER BY cert.issued_at DESC`,
       [student_id]
@@ -36,13 +36,14 @@ const getCertificate = async (req, res, next) => {
       `SELECT cert.*,
         c.title as course_title,
         c.description as course_description,
-        u.first_name || ' ' || u.last_name as student_name,
+        sp.full_name as student_name,
         u.email as student_email,
-        i.first_name || ' ' || i.last_name as instructor_name
+        ip.full_name as instructor_name
       FROM certificates cert
       JOIN courses c ON cert.course_id = c.id
       JOIN users u ON cert.student_id = u.id
-      JOIN users i ON c.instructor_id = i.id
+      JOIN student_profiles sp ON cert.student_id = sp.user_id
+      JOIN instructor_profiles ip ON c.instructor_id = ip.user_id
       WHERE cert.id = $1`,
       [id]
     );
@@ -209,12 +210,12 @@ const verifyCertificate = async (req, res, next) => {
     const result = await query(
       `SELECT cert.*,
         c.title as course_title,
-        u.first_name || ' ' || u.last_name as student_name,
-        i.first_name || ' ' || i.last_name as instructor_name
+        sp.full_name as student_name,
+        ip.full_name as instructor_name
       FROM certificates cert
       JOIN courses c ON cert.course_id = c.id
-      JOIN users u ON cert.student_id = u.id
-      JOIN users i ON c.instructor_id = i.id
+      JOIN student_profiles sp ON cert.student_id = sp.user_id
+      JOIN instructor_profiles ip ON c.instructor_id = ip.user_id
       WHERE cert.certificate_number = $1`,
       [certificateNumber]
     );
@@ -279,10 +280,11 @@ const getCourseCertificates = async (req, res, next) => {
 
     const result = await query(
       `SELECT cert.*,
-        u.first_name || ' ' || u.last_name as student_name,
+        sp.full_name as student_name,
         u.email as student_email
       FROM certificates cert
       JOIN users u ON cert.student_id = u.id
+      JOIN student_profiles sp ON cert.student_id = sp.user_id
       WHERE cert.course_id = $1
       ORDER BY cert.issued_at DESC`,
       [courseId]
@@ -297,12 +299,48 @@ const getCourseCertificates = async (req, res, next) => {
   }
 };
 
+// Get certificate for logged-in student in a specific course
+const getMyCourseCertificate = async (req, res, next) => {
+  try {
+    const { courseId } = req.params;
+    const student_id = req.user.id;
+
+    const result = await query(
+      `SELECT cert.*,
+        c.title as course_title,
+        c.thumbnail_url,
+        sp.full_name as student_name,
+        ip.full_name as instructor_name
+      FROM certificates cert
+      JOIN courses c ON cert.course_id = c.id
+      JOIN student_profiles sp ON cert.student_id = sp.user_id
+      JOIN instructor_profiles ip ON c.instructor_id = ip.user_id
+      WHERE cert.course_id = $1 AND cert.student_id = $2 AND cert.status = 'ISSUED'
+      ORDER BY cert.issued_at DESC
+      LIMIT 1`,
+      [courseId, student_id]
+    );
+
+    return res.json({
+      success: true,
+      data: result.rows[0] || null,
+    });
+  } catch (error) {
+    console.error('getMyCourseCertificate error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch certificate',
+    });
+  }
+};
+
 module.exports = {
   getStudentCertificates,
   getCertificate,
   getCertificateEligibility,
+  getMyCourseCertificate,
   issueCertificate,
   verifyCertificate,
   revokeCertificate,
-  getCourseCertificates
+  getCourseCertificates,
 };

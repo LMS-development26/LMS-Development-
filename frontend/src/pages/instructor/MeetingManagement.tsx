@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
-  ArrowLeft, Plus, Pencil, Trash2, Video, Upload, FileText, Users, Clock, XCircle,
+  ArrowLeft, Plus, Pencil, Video, Upload, FileText, Users, Clock, XCircle,
 } from 'lucide-react';
 import { courseApi, meetingApi, attendanceApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
@@ -23,30 +23,72 @@ export function MeetingManagement() {
   const [notes, setNotes] = useState('');
   const [attendanceModal, setAttendanceModal] = useState<Meeting | null>(null);
   const [attendance, setAttendance] = useState<MeetingAttendance[]>([]);
+  const [saveError, setSaveError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const openModal = (meeting?: Meeting) => {
+    setSaveError('');
     if (meeting) { setEditing(meeting); setForm({ title: meeting.title, description: meeting.description || '', meeting_date: meeting.meeting_date, start_time: meeting.start_time, end_time: meeting.end_time, google_meet_link: meeting.google_meet_link }); }
     else { setEditing(null); setForm({ title: '', description: '', meeting_date: '', start_time: '10:00', end_time: '11:00', google_meet_link: '' }); }
     setModal(true);
   };
 
   const save = async () => {
-    if (editing) { await meetingApi.update(editing.id, form); }
-    else { await meetingApi.create({ course_id: courseId!, ...form }); }
-    setModal(false);
-    refetch();
+    if (!form.title || !form.meeting_date || !form.start_time || !form.end_time) {
+      setSaveError('Please fill in all required fields');
+      return;
+    }
+
+    setSaving(true);
+    setSaveError('');
+
+    try {
+      if (editing) {
+        await meetingApi.update(editing.id, form);
+      } else {
+        await meetingApi.create({ course_id: courseId!, ...form });
+      }
+      setModal(false);
+      refetch();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save live class. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const cancel = async (id: string) => { await meetingApi.cancel(id); refetch(); };
 
-  const openRecording = (m: Meeting) => { setRecordingModal(m); setRecordingUrl(m.recording_url || ''); };
+  const openRecording = (m: Meeting) => { setRecordingModal(m); setRecordingUrl(m.recording_url || ''); setSaveError(''); };
   const saveRecording = async () => {
-    if (recordingModal) { await meetingApi.uploadRecording(recordingModal.id, recordingUrl); setRecordingModal(null); refetch(); }
+    if (!recordingModal) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await meetingApi.uploadRecording(recordingModal.id, recordingUrl);
+      setRecordingModal(null);
+      refetch();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to upload recording. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const openNotes = (m: Meeting) => { setNotesModal(m); setNotes(m.notes || ''); };
+  const openNotes = (m: Meeting) => { setNotesModal(m); setNotes(m.notes || ''); setSaveError(''); };
   const saveNotes = async () => {
-    if (notesModal) { await meetingApi.uploadNotes(notesModal.id, notes); setNotesModal(null); refetch(); }
+    if (!notesModal) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await meetingApi.uploadNotes(notesModal.id, notes);
+      setNotesModal(null);
+      refetch();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save notes. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const viewAttendance = async (m: Meeting) => {
@@ -141,8 +183,13 @@ export function MeetingManagement() {
       </div>
 
       {/* Schedule Modal */}
-      <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Edit Live Class' : 'Schedule Live Class'} footer={<><Button variant="outline" onClick={() => setModal(false)}>Cancel</Button><Button onClick={save}>Save</Button></>}>
+      <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Edit Live Class' : 'Schedule Live Class'} footer={<><Button variant="outline" onClick={() => setModal(false)} disabled={saving}>Cancel</Button><Button onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button></>}>
         <div className="space-y-4">
+          {saveError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              {saveError}
+            </div>
+          )}
           <Input label="Meeting Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <Textarea label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
           <Input label="Date" type="date" value={form.meeting_date} onChange={(e) => setForm({ ...form, meeting_date: e.target.value })} />
@@ -155,8 +202,13 @@ export function MeetingManagement() {
       </Modal>
 
       {/* Recording Modal */}
-      <Modal open={!!recordingModal} onClose={() => setRecordingModal(null)} title="Upload Recording" footer={<><Button variant="outline" onClick={() => setRecordingModal(null)}>Cancel</Button><Button onClick={saveRecording}>Save</Button></>}>
+      <Modal open={!!recordingModal} onClose={() => setRecordingModal(null)} title="Upload Recording" footer={<><Button variant="outline" onClick={() => setRecordingModal(null)} disabled={saving}>Cancel</Button><Button onClick={saveRecording} disabled={saving}>{saving ? 'Uploading...' : 'Save'}</Button></>}>
         <div className="space-y-4">
+          {saveError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              {saveError}
+            </div>
+          )}
           <label className="flex h-24 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400">
             <Upload className="h-6 w-6 text-gray-400" />
             <p className="mt-1 text-sm text-gray-600">Upload recording to S3</p>
@@ -167,8 +219,15 @@ export function MeetingManagement() {
       </Modal>
 
       {/* Notes Modal */}
-      <Modal open={!!notesModal} onClose={() => setNotesModal(null)} title="Meeting Notes" footer={<><Button variant="outline" onClick={() => setNotesModal(null)}>Cancel</Button><Button onClick={saveNotes}>Save</Button></>}>
-        <Textarea label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={6} placeholder="Meeting notes for students..." />
+      <Modal open={!!notesModal} onClose={() => setNotesModal(null)} title="Meeting Notes" footer={<><Button variant="outline" onClick={() => setNotesModal(null)} disabled={saving}>Cancel</Button><Button onClick={saveNotes} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button></>}>
+        <div className="space-y-4">
+          {saveError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              {saveError}
+            </div>
+          )}
+          <Textarea label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={6} placeholder="Meeting notes for students..." />
+        </div>
       </Modal>
 
       {/* Attendance Modal */}

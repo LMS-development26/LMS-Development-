@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, getClient } = require('../config/database');
 
 // Get lessons by module
 const getLessonsByModule = async (req, res, next) => {
@@ -48,7 +48,7 @@ const getLesson = async (req, res, next) => {
 // Create new lesson
 const createLesson = async (req, res, next) => {
   try {
-    const { module_id, lesson_title, description, lesson_order, duration_minutes, is_preview } = req.body;
+    const { module_id, title, description, lesson_order, duration_minutes, is_preview } = req.body;
 
     // Get next lesson order if not provided
     let order = lesson_order;
@@ -64,7 +64,7 @@ const createLesson = async (req, res, next) => {
       `INSERT INTO lessons (module_id, lesson_title, description, lesson_order, duration_minutes, is_preview, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [module_id, lesson_title, description, order, duration_minutes, is_preview || false]
+      [module_id, title, description, order, duration_minutes, is_preview || false]
     );
 
     res.status(201).json({
@@ -80,7 +80,7 @@ const createLesson = async (req, res, next) => {
 const updateLesson = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { lesson_title, description, lesson_order, duration_minutes, is_preview } = req.body;
+    const { title, description, lesson_order, duration_minutes, is_preview } = req.body;
 
     const result = await query(
       `UPDATE lessons
@@ -91,7 +91,7 @@ const updateLesson = async (req, res, next) => {
            is_preview = COALESCE($5, is_preview)
        WHERE id = $6
        RETURNING *`,
-      [lesson_title, description, lesson_order, duration_minutes, is_preview, id]
+      [title, description, lesson_order, duration_minutes, is_preview, id]
     );
 
     if (result.rows.length === 0) {
@@ -115,7 +115,7 @@ const deleteLesson = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const client = await query('getClient');
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -157,10 +157,45 @@ const deleteLesson = async (req, res, next) => {
   }
 };
 
+// Reorder lessons
+const reorderLessons = async (req, res, next) => {
+  try {
+    const { lessonIds } = req.body;
+
+    const client = await getClient();
+    
+    try {
+      await client.query('BEGIN');
+
+      for (let i = 0; i < lessonIds.length; i++) {
+        await client.query(
+          'UPDATE lessons SET lesson_order = $1 WHERE id = $2',
+          [i + 1, lessonIds[i]]
+        );
+      }
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: 'Lessons reordered successfully'
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getLessonsByModule,
   getLesson,
   createLesson,
   updateLesson,
-  deleteLesson
+  deleteLesson,
+  reorderLessons
 };

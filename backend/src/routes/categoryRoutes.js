@@ -1,14 +1,20 @@
 const express = require('express');
 const { body } = require('express-validator');
 const categoryController = require('../controllers/categoryController');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/authMiddleware');
 const { handleValidationErrors } = require('../middleware/validation');
 
 const router = express.Router();
 
 // Validation rules
 const createCategoryValidation = [
-  body('category_name').notEmpty().withMessage('Category name is required')
+  body()
+    .custom((value, { req }) => {
+      if (!req.body.name && !req.body.category_name) {
+        throw new Error('Category name is required');
+      }
+      return true;
+    })
 ];
 
 // Routes

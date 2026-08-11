@@ -1,11 +1,13 @@
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
+const UserModel = require('../models/userModel');
 
 // Generate JWT Token
 const generateToken = (userId) => {
-  const secret = process.env.JWT_SECRET || 'lms_secret_key_for_development_2024';
-  return jwt.sign({ id: userId }, secret, {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
+  return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d'
   });
 };
@@ -13,45 +15,39 @@ const generateToken = (userId) => {
 // Register new user
 const register = async (req, res, next) => {
   try {
-    const { email, password, full_name, role } = req.body;
+    const { email, password, firstName, lastName, role, expertise, bio } = req.body;
 
-    // Check if user already exists
-    const existingUser = await query(
-      'SELECT id FROM users WHERE email = $1',
-      [email]
-    );
+    // Combine first and last name
+    const full_name = `${firstName} ${lastName}`;
 
-    if (existingUser.rows.length > 0) {
+    // Check if user already exists using UserModel
+    const existingUser = await UserModel.findByEmail(email);
+
+    if (existingUser) {
       return res.status(400).json({
         success: false,
         error: 'User with this email already exists'
       });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Insert user
-    const result = await query(
-      `INSERT INTO users (email, password_hash, role, status, created_at)
-       VALUES ($1, $2, $3, 'ACTIVE', CURRENT_TIMESTAMP)
-       RETURNING id, email, role, created_at`,
-      [email, hashedPassword, role || 'STUDENT']
-    );
-
-    const user = result.rows[0];
+    // Create user using UserModel
+    const user = await UserModel.create({
+      email,
+      password,
+      role: role || 'STUDENT'
+    });
 
     // Create profile based on role
     if (user.role === 'INSTRUCTOR') {
       await query(
-        'INSERT INTO instructor_profiles (user_id, full_name) VALUES ($1, $2)',
-        [user.id, full_name || 'Instructor']
+        `INSERT INTO instructor_profiles (user_id, full_name, bio, qualification) 
+         VALUES ($1, $2, $3, $4)`,
+        [user.id, full_name, bio || null, expertise || null]
       );
     } else if (user.role === 'STUDENT') {
       await query(
         'INSERT INTO student_profiles (user_id, full_name) VALUES ($1, $2)',
-        [user.id, full_name || 'Student']
+        [user.id, full_name]
       );
     }
 
@@ -64,6 +60,8 @@ const register = async (req, res, next) => {
         user: {
           id: user.id,
           email: user.email,
+          first_name: firstName,
+          last_name: lastName,
           full_name: full_name,
           role: user.role
         },
@@ -80,20 +78,15 @@ const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // Check if user exists
-    const result = await query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    );
+    // Check if user exists using UserModel
+    const user = await UserModel.findByEmail(email);
 
-    if (result.rows.length === 0) {
+    if (!user) {
       return res.status(401).json({
         success: false,
         error: 'Invalid credentials'
       });
     }
-
-    const user = result.rows[0];
 
     // Check if user is active
     if (user.status !== 'ACTIVE') {
@@ -103,15 +96,41 @@ const login = async (req, res, next) => {
       });
     }
 
-    // Verify password
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    // Check if account is locked
+    if (UserModel.isAccountLocked(user)) {
+      return res.status(401).json({
+        success: false,
+        error: 'Account is temporarily locked due to too many failed login attempts'
+      });
+    }
+
+    // Verify password using UserModel
+    const isMatch = await UserModel.verifyPassword(password, user.password_hash);
 
     if (!isMatch) {
+      // Increment failed login attempts
+      const newAttempts = (user.failed_login_attempts || 0) + 1;
+      await UserModel.updateFailedAttempts(user.id, newAttempts);
+
+      // Lock account if too many failed attempts (5 attempts)
+      if (newAttempts >= 5) {
+        const lockUntil = new Date(Date.now() + 30 * 60 * 1000); // Lock for 30 minutes
+        await UserModel.lockAccount(user.id, lockUntil);
+      }
+
       return res.status(401).json({
         success: false,
         error: 'Invalid credentials'
       });
     }
+
+    // Reset failed login attempts on successful login
+    if (user.failed_login_attempts > 0) {
+      await UserModel.updateFailedAttempts(user.id, 0);
+    }
+
+    // Update last login
+    await UserModel.updateLastLogin(user.id);
 
     // Get profile based on role
     let profile = null;
@@ -136,14 +155,22 @@ const login = async (req, res, next) => {
     // Generate token
     const token = generateToken(user.id);
 
+    // Split full_name into first_name and last_name
+    const names = (profile?.full_name || '').split(' ');
+    const first_name = names[0] || '';
+    const last_name = names.slice(1).join(' ') || '';
+
     res.json({
       success: true,
       data: {
         user: {
           id: user.id,
           email: user.email,
+          first_name: first_name,
+          last_name: last_name,
           full_name: profile?.full_name,
-          role: user.role
+          role: user.role,
+          created_at: user.created_at
         },
         token
       }
@@ -156,19 +183,14 @@ const login = async (req, res, next) => {
 // Get current user
 const getCurrentUser = async (req, res, next) => {
   try {
-    const result = await query(
-      'SELECT id, email, role, created_at FROM users WHERE id = $1',
-      [req.user.id]
-    );
+    const user = await UserModel.findById(req.user.id);
 
-    if (result.rows.length === 0) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         error: 'User not found'
       });
     }
-
-    const user = result.rows[0];
 
     // Get profile based on role
     let profile = null;
@@ -190,11 +212,22 @@ const getCurrentUser = async (req, res, next) => {
       }
     }
 
+    // Split full_name into first_name and last_name
+    const names = (profile?.full_name || '').split(' ');
+    const first_name = names[0] || '';
+    const last_name = names.slice(1).join(' ') || '';
+
     res.json({
       success: true,
       data: {
         user: {
-          ...user,
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+          created_at: user.created_at,
+          first_name: first_name,
+          last_name: last_name,
           full_name: profile?.full_name
         },
         profile
@@ -210,19 +243,14 @@ const switchUser = async (req, res, next) => {
   try {
     const { userId } = req.body;
 
-    const result = await query(
-      'SELECT id, email, role FROM users WHERE id = $1',
-      [userId]
-    );
+    const user = await UserModel.findById(userId);
 
-    if (result.rows.length === 0) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         error: 'User not found'
       });
     }
-
-    const user = result.rows[0];
 
     // Get profile based on role
     let profile = null;
@@ -244,6 +272,11 @@ const switchUser = async (req, res, next) => {
       }
     }
 
+    // Split full_name into first_name and last_name
+    const names = (profile?.full_name || '').split(' ');
+    const first_name = names[0] || '';
+    const last_name = names.slice(1).join(' ') || '';
+
     const token = generateToken(user.id);
 
     res.json({
@@ -251,6 +284,8 @@ const switchUser = async (req, res, next) => {
       data: {
         user: {
           ...user,
+          first_name: first_name,
+          last_name: last_name,
           full_name: profile?.full_name
         },
         token
