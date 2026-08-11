@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, getClient } = require('../config/database');
 
 // Get modules by course
 const getModulesByCourse = async (req, res, next) => {
@@ -48,7 +48,7 @@ const getModule = async (req, res, next) => {
 // Create new module
 const createModule = async (req, res, next) => {
   try {
-    const { course_id, module_name, description, display_order } = req.body;
+    const { course_id, name, description, display_order } = req.body;
 
     // Get next display order if not provided
     let order = display_order;
@@ -64,7 +64,7 @@ const createModule = async (req, res, next) => {
       `INSERT INTO course_modules (course_id, module_name, description, display_order, created_at)
        VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [course_id, module_name, description, order]
+      [course_id, name, description, order]
     );
 
     res.status(201).json({
@@ -80,7 +80,7 @@ const createModule = async (req, res, next) => {
 const updateModule = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { module_name, description, display_order } = req.body;
+    const { name, description, display_order } = req.body;
 
     const result = await query(
       `UPDATE course_modules
@@ -89,7 +89,7 @@ const updateModule = async (req, res, next) => {
            display_order = COALESCE($3, display_order)
        WHERE id = $4
        RETURNING *`,
-      [module_name, description, display_order, id]
+      [name, description, display_order, id]
     );
 
     if (result.rows.length === 0) {
@@ -113,7 +113,7 @@ const deleteModule = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const client = await query('getClient');
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -169,10 +169,45 @@ const deleteModule = async (req, res, next) => {
   }
 };
 
+// Reorder modules
+const reorderModules = async (req, res, next) => {
+  try {
+    const { moduleIds } = req.body;
+
+    const client = await getClient();
+    
+    try {
+      await client.query('BEGIN');
+
+      for (let i = 0; i < moduleIds.length; i++) {
+        await client.query(
+          'UPDATE course_modules SET display_order = $1 WHERE id = $2',
+          [i + 1, moduleIds[i]]
+        );
+      }
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: 'Modules reordered successfully'
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getModulesByCourse,
   getModule,
   createModule,
   updateModule,
-  deleteModule
+  deleteModule,
+  reorderModules
 };

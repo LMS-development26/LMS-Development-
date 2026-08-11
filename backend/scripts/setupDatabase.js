@@ -1,14 +1,15 @@
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
+require('dotenv').config();
 
 // Database connection for setup
 const setupPool = new Pool({
-  host: 'localhost',
-  port: 5432,
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
   database: 'postgres', // Connect to default database first
-  user: 'postgres',
-  password: 'Nikki@3001'
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'Nikki@3001'
 });
 
 async function setupDatabase() {
@@ -29,11 +30,11 @@ async function setupDatabase() {
     
     // Connect to the new database
     const dbPool = new Pool({
-      host: 'localhost',
-      port: 5432,
-      database: 'lms_database',
-      user: 'postgres',
-      password: 'Nikki@3001'
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 5432,
+      database: process.env.DB_NAME || 'lms_database',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || 'Nikki@3001'
     });
     
     const dbClient = await dbPool.connect();

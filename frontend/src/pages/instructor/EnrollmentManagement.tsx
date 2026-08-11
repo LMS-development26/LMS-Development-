@@ -2,21 +2,20 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Check, X, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { enrollmentRequestApi, courseApi } from '@/services/api';
-import { mockInstructorProfiles } from '@/data/mockData';
+import { enrollmentRequestApi, courseApi, authApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
-import { Card, CardBody, Button, Table, StatusBadge, Modal, Textarea, LoadingState, EmptyState } from '@/components/ui';
+import { Card, Button, Table, StatusBadge, Modal, Textarea, LoadingState, EmptyState } from '@/components/ui';
 import { formatDate } from '@/utils/helpers';
 import type { EnrollmentRequest } from '@/types';
 
 export function EnrollmentManagement() {
   const { courseId } = useParams<{ courseId: string }>();
   const { user } = useAuth();
-  const instructorProfile = mockInstructorProfiles.find((p) => p.user_id === user?.id);
+  const { data: instructorProfile } = useAsync(() => user?.id ? authApi.getInstructorProfile(user.id) : Promise.resolve(null), [user?.id]);
 
   const { data: requests, loading, refetch } = useAsync(
-    () => enrollmentRequestApi.list({ instructorId: instructorProfile?.id, courseId }),
-    [instructorProfile?.id, courseId],
+    () => enrollmentRequestApi.listByCourse(courseId!),
+    [courseId],
   );
   const { data: course } = useAsync(() => courseApi.getById(courseId!), [courseId]);
 

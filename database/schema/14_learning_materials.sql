@@ -4,13 +4,21 @@ CREATE TABLE learning_materials
 
     lesson_id UUID NOT NULL,
 
-    material_type material_type NOT NULL,
+    type material_type NOT NULL,
 
     title VARCHAR(255) NOT NULL,
 
-    file_url TEXT,
+    description TEXT,
 
-    file_size BIGINT,
+    s3_url TEXT,
+
+    external_url TEXT,
+
+    file_size_bytes BIGINT,
+
+    file_type VARCHAR(50),
+
+    display_order INTEGER NOT NULL,
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 

@@ -1,4 +1,4 @@
-import { Settings, Save, Globe, Database, Shield, Bell } from 'lucide-react';
+import { Save, Globe, Shield, Bell } from 'lucide-react';
 import { useState } from 'react';
 import { Card, CardHeader, CardBody, Button, Input, Select } from '@/components/ui';
 

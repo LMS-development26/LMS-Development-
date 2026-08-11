@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Clock, CheckCircle2, Award, TrendingUp, BookOpen } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { courseApi, progressApi, lessonProgressApi, moduleApi, lessonApi } from '@/services/api';
+import { courseApi, progressApi, lessonProgressApi, moduleApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
 import { Card, CardBody, CardHeader, Button, ProgressBar, StatCard, LoadingState } from '@/components/ui';
 import { formatDuration, formatDate } from '@/utils/helpers';
@@ -60,7 +60,7 @@ export function StudentProgress() {
         <CardBody>
           <div className="space-y-3">
             {modules?.map((mod) => {
-              const modLessons = lessonProgress?.filter((lp) => {
+              const modLessons = lessonProgress?.filter(() => {
                 // We need to check if lesson belongs to this module - but we only have lesson_id
                 // For simplicity, we'll show all lesson progress
                 return true;

@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, getClient } = require('../config/database');
 
 // Get enrollment requests for a course (instructor/admin)
 const getEnrollmentRequests = async (req, res, next) => {
@@ -7,15 +7,45 @@ const getEnrollmentRequests = async (req, res, next) => {
 
     const result = await query(
       `SELECT er.*,
-        u.first_name || ' ' || u.last_name as student_name,
+        sp.full_name as student_name,
         u.email as student_email,
         c.title as course_title
       FROM enrollment_requests er
       JOIN users u ON er.student_id = u.id
+      JOIN student_profiles sp ON er.student_id = sp.user_id
       JOIN courses c ON er.course_id = c.id
       WHERE er.course_id = $1
       ORDER BY er.requested_at DESC`,
       [courseId]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get all enrollment requests for an instructor (across all their courses)
+const getInstructorEnrollmentRequests = async (req, res, next) => {
+  try {
+    const instructorId = req.user.id;
+
+    const result = await query(
+      `SELECT er.*,
+        sp.full_name as student_name,
+        u.email as student_email,
+        c.title as course_title,
+        c.id as course_id
+      FROM enrollment_requests er
+      JOIN users u ON er.student_id = u.id
+      JOIN student_profiles sp ON er.student_id = sp.user_id
+      JOIN courses c ON er.course_id = c.id
+      WHERE c.instructor_id = $1
+      ORDER BY er.requested_at DESC`,
+      [instructorId]
     );
 
     res.json({
@@ -80,7 +110,7 @@ const approveEnrollmentRequest = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const client = await query('getClient');
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -172,18 +202,52 @@ const getCourseEnrollments = async (req, res, next) => {
 
     const result = await query(
       `SELECT e.*,
-        u.first_name || ' ' || u.last_name as student_name,
+        sp.full_name as student_name,
         u.email as student_email,
         c.title as course_title,
         cp.progress_percentage,
-        cp.completed_at
+        cp.completion_date
       FROM enrollments e
       JOIN users u ON e.student_id = u.id
+      JOIN student_profiles sp ON e.student_id = sp.user_id
       JOIN courses c ON e.course_id = c.id
       LEFT JOIN course_progress cp ON e.course_id = cp.course_id AND e.student_id = cp.student_id
       WHERE e.course_id = $1
       ORDER BY e.enrolled_at DESC`,
       [courseId]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get all enrollments for an instructor (across all their courses)
+const getInstructorEnrollments = async (req, res, next) => {
+  try {
+    const instructorId = req.user.id;
+
+    const result = await query(
+      `SELECT e.*,
+        sp.full_name as student_name,
+        u.email as student_email,
+        c.title as course_title,
+        c.id as course_id,
+        c.thumbnail_url,
+        cp.progress_percentage,
+        cp.completion_date
+      FROM enrollments e
+      JOIN users u ON e.student_id = u.id
+      JOIN student_profiles sp ON e.student_id = sp.user_id
+      JOIN courses c ON e.course_id = c.id
+      LEFT JOIN course_progress cp ON e.course_id = cp.course_id AND e.student_id = cp.student_id
+      WHERE c.instructor_id = $1
+      ORDER BY e.enrolled_at DESC`,
+      [instructorId]
     );
 
     res.json({
@@ -202,28 +266,44 @@ const getStudentEnrollments = async (req, res, next) => {
 
     const result = await query(
       `SELECT e.*,
+        c.title,
         c.title as course_title,
+        c.subtitle,
         c.thumbnail_url,
         c.difficulty,
-        u.first_name || ' ' || u.last_name as instructor_name,
+        c.price,
+        c.status as course_status,
+        cat.category_name,
+        ip.full_name as instructor_name,
         cp.progress_percentage,
-        cp.completed_at
+        cp.completion_date
       FROM enrollments e
       JOIN courses c ON e.course_id = c.id
-      JOIN users u ON c.instructor_id = u.id
+      LEFT JOIN course_categories cat ON c.category_id = cat.id
+      LEFT JOIN instructor_profiles ip ON c.instructor_id = ip.user_id
       LEFT JOIN course_progress cp ON e.course_id = cp.course_id AND e.student_id = cp.student_id
       WHERE e.student_id = $1
       ORDER BY e.enrolled_at DESC`,
       [student_id]
     );
 
-    res.json({
+    return res.json({
       success: true,
-      data: result.rows
+      data: result.rows,
     });
   } catch (error) {
-    next(error);
+    console.error('getStudentEnrollments error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch enrollments',
+    });
   }
+};
+
+// Get logged-in student's enrolled courses with populated course data
+const getMyCourses = async (req, res, next) => {
+  req.params = { ...req.params, studentId: req.user.id };
+  return getStudentEnrollments(req, res, next);
 };
 
 // Direct enrollment (for free courses or admin)
@@ -289,11 +369,14 @@ const cancelEnrollment = async (req, res, next) => {
 
 module.exports = {
   getEnrollmentRequests,
+  getInstructorEnrollmentRequests,
   createEnrollmentRequest,
   approveEnrollmentRequest,
   rejectEnrollmentRequest,
   getCourseEnrollments,
+  getInstructorEnrollments,
   getStudentEnrollments,
+  getMyCourses,
   createEnrollment,
-  cancelEnrollment
+  cancelEnrollment,
 };

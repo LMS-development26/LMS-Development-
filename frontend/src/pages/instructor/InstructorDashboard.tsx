@@ -1,20 +1,28 @@
 import { Link } from 'react-router-dom';
 import { BookOpen, CheckCircle2, FileEdit, Archive, Users, ClipboardList, TrendingUp, Plus, Eye } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { courseApi, enrollmentRequestApi, enrollmentApi } from '@/services/api';
-import { mockInstructorProfiles } from '@/data/mockData';
+import { courseApi, enrollmentRequestApi, authApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
-import { StatCard, Card, CardHeader, CardBody, Button, StatusBadge, ProgressBar, StarRating, EmptyState } from '@/components/ui';
+import { StatCard, Card, CardHeader, CardBody, Button, StatusBadge, ProgressBar, StarRating, EmptyState, LoadingState } from '@/components/ui';
 import { formatDate, formatPrice } from '@/utils/helpers';
-import type { Course } from '@/types';
+import type { Course, InstructorProfile } from '@/types';
 
 export function InstructorDashboard() {
   const { user } = useAuth();
-  const instructorProfile = mockInstructorProfiles.find((p) => p.user_id === user?.id);
+  const { data: instructorProfile, loading: profileLoading } = useAsync(() => user?.id ? authApi.getInstructorProfile(user.id) : Promise.resolve(null), [user?.id]);
 
-  const { data: courses, loading: coursesLoading } = useAsync(() => courseApi.list({ instructorId: instructorProfile?.id }), [instructorProfile?.id]);
-  const { data: pendingRequests } = useAsync(() => enrollmentRequestApi.list({ instructorId: instructorProfile?.id, status: 'PENDING' }), [instructorProfile?.id]);
-  const { data: enrollments } = useAsync(() => enrollmentApi.list({}), []);
+  const { data: courses, loading: coursesLoading } = useAsync(() => instructorProfile?.user_id ? courseApi.list({ instructorId: instructorProfile.user_id }) : Promise.resolve([]), [instructorProfile?.user_id]);
+
+  // Fetch enrollment requests for all instructor courses
+  const { data: pendingRequests } = useAsync(async () => {
+    if (!courses || courses.length === 0) return [];
+    const allRequests = await Promise.all(
+      courses.map(course => enrollmentRequestApi.listByCourse(course.id))
+    );
+    return allRequests.flat();
+  }, [courses]);
+
+  if (profileLoading || coursesLoading) return <LoadingState />;
 
   const publishedCourses = courses?.filter((c) => c.status === 'PUBLISHED') || [];
   const draftCourses = courses?.filter((c) => c.status === 'DRAFT') || [];
@@ -79,7 +87,7 @@ export function InstructorDashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Pending Enrollment Requests */}
         <Card>
-          <CardHeader title="Pending Enrollment Requests" action={<Link to="/instructor/enrollments"><Button variant="ghost" size="sm">View all</Button></Link>} />
+          <CardHeader title="Pending Enrollment Requests" action={<Link to="/instructor/enrollment-requests"><Button variant="ghost" size="sm">View all</Button></Link>} />
           <CardBody>
             {(!pendingRequests || pendingRequests.length === 0) ? (
               <EmptyState icon={<ClipboardList className="h-10 w-10" />} title="No pending requests" />
@@ -116,7 +124,7 @@ export function InstructorDashboard() {
                       </Link>
                       <div className="flex items-center gap-3">
                         <StarRating rating={course.average_rating || 0} showValue />
-                        <span className="text-xs text-gray-400">{course.enrollment_count} students</span>
+                        <span className="text-xs text-gray-400">{course.enrollment_count || 0} students</span>
                       </div>
                     </div>
                     <ProgressBar value={(course.enrollment_count || 0) / (totalEnrollments || 1) * 100} className="mt-1.5" size="sm" />
@@ -140,8 +148,8 @@ export function InstructorDashboard() {
                   <p className="line-clamp-1 text-sm font-medium text-gray-900">{course.title}</p>
                 </div>
                 <div className="mt-3 flex items-center justify-between text-sm">
-                  <span className="text-gray-500">{course.enrollment_count} enrolled</span>
-                  <StarRating rating={course.average_rating || 0} showValue reviewCount={course.review_count} />
+                  <span className="text-gray-500">{course.enrollment_count || 0} enrolled</span>
+                  <StarRating rating={course.average_rating || 0} showValue reviewCount={course.review_count || 0} />
                 </div>
               </div>
             ))}

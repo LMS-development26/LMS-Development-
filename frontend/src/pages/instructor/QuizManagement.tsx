@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Pencil, Trash2, FileQuestion, ChevronDown, ChevronRight,
@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { courseApi, quizApi, questionApi, optionApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
-import { Card, CardBody, Button, Modal, Input, Textarea, Select, LoadingState, EmptyState } from '@/components/ui';
+import { Card, Button, Modal, Input, Textarea, Select, LoadingState, EmptyState } from '@/components/ui';
 import { classNames } from '@/utils/helpers';
 import type { Quiz, Question, QuestionOption, QuestionType } from '@/types';
 
@@ -18,7 +18,7 @@ export function QuizManagement() {
   const [expandedQuiz, setExpandedQuiz] = useState<string | null>(null);
   const [quizModal, setQuizModal] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
-  const [quizForm, setQuizForm] = useState({ title: '', description: '', passing_percentage: 70, timer_minutes: 30, attempt_limit: 3 });
+  const [quizForm, setQuizForm] = useState({ title: '', description: '', passing_percentage: 70, time_limit_minutes: 30, attempt_limit: 3 });
 
   const [questionModal, setQuestionModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
@@ -30,7 +30,7 @@ export function QuizManagement() {
   const [questionsByQuiz, setQuestionsByQuiz] = useState<Record<string, Question[]>>({});
   const [optionsByQuestion, setOptionsByQuestion] = useState<Record<string, QuestionOption[]>>({});
 
-  const loadQuizData = async () => {
+  const loadQuizData = useCallback(async () => {
     const qs = await quizApi.listByCourse(courseId!);
     for (const quiz of qs) {
       const questions = await questionApi.listByQuiz(quiz.id);
@@ -40,21 +40,21 @@ export function QuizManagement() {
         setOptionsByQuestion((prev) => ({ ...prev, [q.id]: opts }));
       }
     }
-  };
+  }, [courseId]);
 
-  useEffect(() => { if (courseId) loadQuizData(); }, [courseId]);
+  useEffect(() => { if (courseId) loadQuizData(); }, [courseId, loadQuizData]);
 
   const openQuizModal = (quiz?: Quiz) => {
-    if (quiz) { setEditingQuiz(quiz); setQuizForm({ title: quiz.title, description: quiz.description || '', passing_percentage: quiz.passing_percentage, timer_minutes: quiz.timer_minutes || 30, attempt_limit: quiz.attempt_limit }); }
-    else { setEditingQuiz(null); setQuizForm({ title: '', description: '', passing_percentage: 70, timer_minutes: 30, attempt_limit: 3 }); }
+    if (quiz) { setEditingQuiz(quiz); setQuizForm({ title: quiz.title, description: quiz.description || '', passing_percentage: quiz.passing_percentage, time_limit_minutes: quiz.time_limit_minutes || 30, attempt_limit: quiz.attempt_limit }); }
+    else { setEditingQuiz(null); setQuizForm({ title: '', description: '', passing_percentage: 70, time_limit_minutes: 30, attempt_limit: 3 }); }
     setQuizModal(true);
   };
 
   const saveQuiz = async () => {
     if (editingQuiz) {
-      await quizApi.update(editingQuiz.id, { ...quizForm, timer_minutes: quizForm.timer_minutes || null });
+      await quizApi.update(editingQuiz.id, { ...quizForm, time_limit_minutes: quizForm.time_limit_minutes || null });
     } else {
-      await quizApi.create({ course_id: courseId!, ...quizForm, timer_minutes: quizForm.timer_minutes || null });
+      await quizApi.create({ course_id: courseId!, ...quizForm, time_limit_minutes: quizForm.time_limit_minutes || null });
     }
     setQuizModal(false);
     refetch();
@@ -84,7 +84,7 @@ export function QuizManagement() {
 
   const addOption = () => {
     if (!newOptionText.trim()) return;
-    setOptions([...options, { id: `temp-${Date.now()}`, question_id: '', option_text: newOptionText, is_correct: false, display_order: options.length + 1 }]);
+    setOptions([...options, { id: `temp-${Date.now()}`, question_id: '', option_text: newOptionText, is_correct: false }]);
     setNewOptionText('');
   };
 
@@ -98,6 +98,14 @@ export function QuizManagement() {
   const removeOption = (idx: number) => setOptions(options.filter((_, i) => i !== idx));
 
   const saveQuestion = async () => {
+    if (!activeQuizId) {
+      alert('No quiz selected');
+      return;
+    }
+    
+    console.log('Saving question with activeQuizId:', activeQuizId);
+    console.log('Question form:', questionForm);
+    
     let questionId: string;
     if (editingQuestion) {
       await questionApi.update(editingQuestion.id, { question_text: questionForm.question_text, question_type: questionForm.question_type });
@@ -106,11 +114,11 @@ export function QuizManagement() {
       const existing = await optionApi.listByQuestion(questionId);
       for (const opt of existing) await optionApi.delete(opt.id);
     } else {
-      const q = await questionApi.create({ quiz_id: activeQuizId!, question_text: questionForm.question_text, question_type: questionForm.question_type });
+      const q = await questionApi.create({ quiz_id: activeQuizId, question_text: questionForm.question_text, question_type: questionForm.question_type, question_order: 1 });
       questionId = q.id;
     }
     for (let i = 0; i < options.length; i++) {
-      await optionApi.create({ question_id: questionId, option_text: options[i].option_text, is_correct: options[i].is_correct, display_order: i + 1 });
+      await optionApi.create({ question_id: questionId, option_text: options[i].option_text, is_correct: options[i].is_correct });
     }
     setQuestionModal(false);
     loadQuizData();
@@ -168,7 +176,7 @@ export function QuizManagement() {
                       {quiz.description && <p className="text-xs text-gray-500">{quiz.description}</p>}
                       <div className="mt-1 flex gap-3 text-xs text-gray-400">
                         <span>Pass: {quiz.passing_percentage}%</span>
-                        <span>Timer: {quiz.timer_minutes || 'No limit'}min</span>
+                        <span>Timer: {quiz.time_limit_minutes || 'No limit'}min</span>
                         <span>Attempts: {quiz.attempt_limit}</span>
                         <span>{questions.length} questions</span>
                       </div>
@@ -239,7 +247,7 @@ export function QuizManagement() {
           <Textarea label="Description" value={quizForm.description} onChange={(e) => setQuizForm({ ...quizForm, description: e.target.value })} rows={2} />
           <div className="grid grid-cols-3 gap-4">
             <Input label="Passing %" type="number" min="0" max="100" value={quizForm.passing_percentage} onChange={(e) => setQuizForm({ ...quizForm, passing_percentage: parseInt(e.target.value) || 70 })} />
-            <Input label="Timer (min)" type="number" value={quizForm.timer_minutes} onChange={(e) => setQuizForm({ ...quizForm, timer_minutes: parseInt(e.target.value) || 0 })} />
+            <Input label="Timer (min)" type="number" value={quizForm.time_limit_minutes} onChange={(e) => setQuizForm({ ...quizForm, time_limit_minutes: parseInt(e.target.value) || 0 })} />
             <Input label="Attempt Limit" type="number" value={quizForm.attempt_limit} onChange={(e) => setQuizForm({ ...quizForm, attempt_limit: parseInt(e.target.value) || 1 })} />
           </div>
         </div>

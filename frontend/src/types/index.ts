@@ -18,7 +18,7 @@ export type MaterialType =
   | 'EXTERNAL_LINK'
   | 'SOURCE_CODE'
   | 'DOWNLOADABLE_RESOURCE';
-export type QuestionType = 'MCQ' | 'MULTIPLE_CORRECT';
+export type QuestionType = 'MCQ' | 'MULTIPLE_CORRECT' | 'TRUE_FALSE' | 'FILL_IN_THE_BLANK';
 export type NotificationType =
   | 'ENROLLMENT_APPROVED'
   | 'ENROLLMENT_REJECTED'
@@ -56,7 +56,8 @@ export interface StudentProfile {
 // ---- Course Management Entities ----
 export interface CourseCategory {
   id: string;
-  name: string;
+  name: string; // Maps to category_name in database
+  category_name?: string; // Database field name
   description: string | null;
   created_at: string;
 }
@@ -191,7 +192,7 @@ export interface Quiz {
   title: string;
   description: string | null;
   passing_percentage: number;
-  timer_minutes: number | null;
+  time_limit_minutes: number | null;
   attempt_limit: number;
   created_at: string;
   // joined
@@ -204,7 +205,7 @@ export interface Question {
   quiz_id: string; // FK -> quizzes.id
   question_text: string;
   question_type: QuestionType;
-  display_order: number;
+  question_order: number;
   created_at: string;
 }
 
@@ -213,7 +214,6 @@ export interface QuestionOption {
   question_id: string; // FK -> questions.id
   option_text: string;
   is_correct: boolean;
-  display_order: number;
 }
 
 export interface QuizAttempt {

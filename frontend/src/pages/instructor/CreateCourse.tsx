@@ -1,25 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Check, ChevronLeft, ChevronRight, Save, Globe, Upload, X, FileVideo, Image as ImageIcon, Plus, Tag as TagIcon,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { courseApi, categoryApi, tagApi } from '@/services/api';
-import { mockInstructorProfiles } from '@/data/mockData';
+import { courseApi, categoryApi, tagApi, authApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
 import { Button, Input, Textarea, Select, Card } from '@/components/ui';
-import { classNames, formatFileSize } from '@/utils/helpers';
+import { classNames } from '@/utils/helpers';
 import type { DifficultyLevel, CourseTag } from '@/types';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const steps = ['Basic Info', 'Course Media', 'Pricing', 'Course Details', 'Tags', 'Review'];
 
 export function CreateCourse() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const instructorProfile = mockInstructorProfiles.find((p) => p.user_id === user?.id);
+  const [instructorProfile, setInstructorProfile] = useState<any>(null);
 
   const { data: categories } = useAsync(() => categoryApi.list(), []);
   const { data: existingTags } = useAsync(() => tagApi.list(), []);
+
+  // Fetch instructor profile when user is available
+  useEffect(() => {
+    if (user?.id) {
+      authApi.getInstructorProfile(user.id).then(setInstructorProfile);
+    }
+  }, [user?.id]);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [form, setForm] = useState({
@@ -49,20 +57,32 @@ export function CreateCourse() {
     setForm((prev) => ({ ...prev, [key]: prev[key].filter((_, i) => i !== index) }));
   };
 
-  const simulateUpload = (type: 'thumbnail' | 'video', file: File) => {
+  const simulateUpload = async (type: 'thumbnail' | 'video', file: File) => {
     setUploadProgress((prev) => ({ ...prev, [type]: 0 }));
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        const next = prev[type] + 10;
-        if (next >= 100) {
-          clearInterval(interval);
-          const url = `https://example-s3.s3.amazonaws.com/uploads/${file.name}`;
-          updateForm(type === 'thumbnail' ? 'thumbnail_url' : 'promotional_video_url', url);
-          return { ...prev, [type]: 100 };
-        }
-        return { ...prev, [type]: next };
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const endpoint = type === 'thumbnail' ? '/upload/image' : '/upload/video';
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        body: formData,
       });
-    }, 200);
+
+      const data = await response.json();
+
+      if (data.success) {
+        updateForm(type === 'thumbnail' ? 'thumbnail_url' : 'promotional_video_url', `${API_BASE_URL.replace('/api', '')}${data.data.url}`);
+        setUploadProgress((prev) => ({ ...prev, [type]: 100 }));
+      } else {
+        throw new Error(data.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadProgress((prev) => ({ ...prev, [type]: 0 }));
+      alert('Upload failed. Please try again.');
+    }
   };
 
   const handleFileSelect = (type: 'thumbnail' | 'video', e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,7 +127,7 @@ export function CreateCourse() {
     setSaving(true);
     try {
       const course = await courseApi.create({
-        instructor_id: instructorProfile?.id,
+        instructor_id: user?.id,
         category_id: form.category_id,
         title: form.title,
         subtitle: form.subtitle || null,

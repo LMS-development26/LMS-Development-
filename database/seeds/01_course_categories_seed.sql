@@ -4,7 +4,7 @@
 
 INSERT INTO course_categories
 (
-    name,
+    category_name,
     description
 )
 VALUES

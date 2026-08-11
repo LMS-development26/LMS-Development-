@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, getClient } = require('../config/database');
 
 // Get quizzes by course
 const getQuizzesByCourse = async (req, res, next) => {
@@ -49,12 +49,12 @@ const getQuiz = async (req, res, next) => {
     // Get questions with options
     const questionsResult = await query(
       `SELECT q.*,
-        (SELECT json_agg(o ORDER BY o.display_order)
+        (SELECT json_agg(o)
          FROM question_options o
          WHERE o.question_id = q.id) as options
       FROM questions q
       WHERE q.quiz_id = $1
-      ORDER BY q.display_order`,
+      ORDER BY q.question_order`,
       [id]
     );
 
@@ -75,13 +75,13 @@ const getQuiz = async (req, res, next) => {
 // Create new quiz
 const createQuiz = async (req, res, next) => {
   try {
-    const { course_id, title, description, passing_percentage, timer_minutes, attempt_limit } = req.body;
+    const { course_id, title, description, passing_percentage, time_limit_minutes, attempt_limit } = req.body;
 
     const result = await query(
-      `INSERT INTO quizzes (course_id, title, description, passing_percentage, timer_minutes, attempt_limit, created_at)
+      `INSERT INTO quizzes (course_id, title, description, passing_percentage, time_limit_minutes, attempt_limit, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [course_id, title, description, passing_percentage, timer_minutes, attempt_limit]
+      [course_id, title, description, passing_percentage, time_limit_minutes, attempt_limit]
     );
 
     res.status(201).json({
@@ -97,18 +97,18 @@ const createQuiz = async (req, res, next) => {
 const updateQuiz = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, description, passing_percentage, timer_minutes, attempt_limit } = req.body;
+    const { title, description, passing_percentage, time_limit_minutes, attempt_limit } = req.body;
 
     const result = await query(
       `UPDATE quizzes
        SET title = COALESCE($1, title),
            description = COALESCE($2, description),
            passing_percentage = COALESCE($3, passing_percentage),
-           timer_minutes = COALESCE($4, timer_minutes),
+           time_limit_minutes = COALESCE($4, time_limit_minutes),
            attempt_limit = COALESCE($5, attempt_limit)
        WHERE id = $6
        RETURNING *`,
-      [title, description, passing_percentage, timer_minutes, attempt_limit, id]
+      [title, description, passing_percentage, time_limit_minutes, attempt_limit, id]
     );
 
     if (result.rows.length === 0) {
@@ -132,7 +132,7 @@ const deleteQuiz = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const client = await query('getClient');
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -207,13 +207,24 @@ const deleteQuiz = async (req, res, next) => {
 // Create question
 const createQuestion = async (req, res, next) => {
   try {
-    const { quiz_id, question_text, question_type, display_order } = req.body;
+    const { quiz_id, question_text, question_type, question_order } = req.body;
+
+    // Validate required fields
+    if (!quiz_id || !question_text || !question_type) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: quiz_id, question_text, question_type'
+      });
+    }
+
+    // Add error logging for debugging
+    console.log('Creating question with data:', { quiz_id, question_text, question_type, question_order });
 
     const result = await query(
-      `INSERT INTO questions (quiz_id, question_text, question_type, display_order, created_at)
-       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+      `INSERT INTO questions (quiz_id, question_text, question_type, question_order)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [quiz_id, question_text, question_type, display_order]
+      [quiz_id, question_text, question_type, question_order]
     );
 
     res.status(201).json({
@@ -221,6 +232,7 @@ const createQuestion = async (req, res, next) => {
       data: result.rows[0]
     });
   } catch (error) {
+    console.error('Error creating question:', error);
     next(error);
   }
 };
@@ -229,16 +241,16 @@ const createQuestion = async (req, res, next) => {
 const updateQuestion = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { question_text, question_type, display_order } = req.body;
+    const { question_text, question_type, question_order } = req.body;
 
     const result = await query(
       `UPDATE questions
        SET question_text = COALESCE($1, question_text),
            question_type = COALESCE($2, question_type),
-           display_order = COALESCE($3, display_order)
+           question_order = COALESCE($3, question_order)
        WHERE id = $4
        RETURNING *`,
-      [question_text, question_type, display_order, id]
+      [question_text, question_type, question_order, id]
     );
 
     if (result.rows.length === 0) {
@@ -262,7 +274,7 @@ const deleteQuestion = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const client = await query('getClient');
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -307,13 +319,13 @@ const deleteQuestion = async (req, res, next) => {
 // Create question option
 const createOption = async (req, res, next) => {
   try {
-    const { question_id, option_text, is_correct, display_order } = req.body;
+    const { question_id, option_text, is_correct } = req.body;
 
     const result = await query(
-      `INSERT INTO question_options (question_id, option_text, is_correct, display_order)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO question_options (question_id, option_text, is_correct)
+       VALUES ($1, $2, $3)
        RETURNING *`,
-      [question_id, option_text, is_correct, display_order]
+      [question_id, option_text, is_correct]
     );
 
     res.status(201).json({
@@ -329,16 +341,15 @@ const createOption = async (req, res, next) => {
 const updateOption = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { option_text, is_correct, display_order } = req.body;
+    const { option_text, is_correct } = req.body;
 
     const result = await query(
       `UPDATE question_options
        SET option_text = COALESCE($1, option_text),
-           is_correct = COALESCE($2, is_correct),
-           display_order = COALESCE($3, display_order)
-       WHERE id = $4
+           is_correct = COALESCE($2, is_correct)
+       WHERE id = $3
        RETURNING *`,
-      [option_text, is_correct, display_order, id]
+      [option_text, is_correct, id]
     );
 
     if (result.rows.length === 0) {
@@ -445,7 +456,7 @@ const submitAttempt = async (req, res, next) => {
   try {
     const { attempt_id, answers } = req.body; // answers: [{ question_id, selected_option_id }]
 
-    const client = await query('getClient');
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');

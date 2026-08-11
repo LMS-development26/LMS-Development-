@@ -1,127 +1,145 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { login } from "../../services/authService";
-import { useAuth } from "@/context/AuthContext";
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, GraduationCap } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { authApi } from '@/services/api';
 
-export default function InstructorLogin() {
+export function InstructorLogin() {
   const navigate = useNavigate();
-  const { login: authLogin } = useAuth();
+  const { login } = useAuth();
 
+  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  try {
-    const response = await login(email, password);
+    if (!email || !password) {
+      setError("Email and Password are required");
+      return;
+    }
 
-    console.log("Full Response:", response);
-    console.log("Response Data:", response.data);
+    setLoading(true);
+    setError("");
 
-    const user = response.data.data.user;
-    const token = response.data.data.token;
+    try {
+      const { user } = await authApi.login(email, password);
+      
+      // Verify user is an instructor
+      if (user.role !== 'INSTRUCTOR') {
+        setError("This account is not registered as an instructor");
+        return;
+      }
 
-    console.log("User:", user);
-    console.log("Role:", user.role);
+      login(user);
+      navigate("/instructor/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    localStorage.setItem("token", token);
-    authLogin(user);
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-purple-50 to-white flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 border border-purple-200">
+          {/* Logo */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+              <GraduationCap className="h-8 w-8 text-purple-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-800">Instructor Login</h1>
+            <p className="text-gray-600 mt-2">Welcome back to LMS Instructor Portal</p>
+          </div>
 
-    alert("Login Successful");
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
 
-    navigate("/instructor/dashboard");
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                />
+              </div>
+            </div>
 
-  } catch (error: any) {
-  console.error(error);
+            {/* Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-12 py-3 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+            </div>
 
-  if (error.response) {
-    console.log("Status:", error.response.status);
-    console.log("Data:", error.response.data);
-    alert(error.response.data.error || "Login Failed");
-  } else {
-    alert(error.message);
-  }
-}
-};
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between">
+              <label className="flex items-center">
+                <input type="checkbox" className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500" />
+                <span className="ml-2 text-sm text-gray-600">Remember me</span>
+              </label>
+              <a href="#" className="text-sm text-purple-600 hover:text-purple-700 font-medium">
+                Forgot password?
+              </a>
+            </div>
 
- return (
-  <div className="min-h-screen bg-gradient-to-br from-purple-100 to-purple-50 flex items-center justify-center">
-    <div className="w-[420px] bg-white rounded-3xl shadow-2xl p-8">
+            {/* Login Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Signing In...' : 'Sign In'}
+            </button>
+          </form>
 
-      <div className="flex justify-center">
-        <div className="w-20 h-20 rounded-full bg-gradient-to-r from-purple-700 to-violet-500 flex items-center justify-center text-4xl">
-          🎓
+          {/* Register Link */}
+          <div className="mt-6 text-center">
+            <p className="text-gray-600">
+              Don't have an instructor account?{" "}
+              <Link to="/instructor/register" className="text-purple-600 hover:text-purple-700 font-semibold">
+                Register here
+              </Link>
+            </p>
+          </div>
+
+          {/* Back to Landing */}
+          <div className="mt-4 text-center">
+            <Link to="/" className="text-sm text-gray-500 hover:text-gray-700">
+              ← Back to Role Selection
+            </Link>
+          </div>
         </div>
       </div>
-
-      <h2 className="text-center text-2xl font-bold text-purple-700 mt-5">
-        Welcome Back
-      </h2>
-
-      <p className="text-center text-gray-500 mb-8">
-        Login to continue your teaching journey
-      </p>
-
-      <form onSubmit={handleLogin} className="space-y-5">
-
-        <div>
-          <label className="font-medium text-gray-700">
-            Email Address
-          </label>
-
-          <input
-            type="email"
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e)=>setEmail(e.target.value)}
-            className="w-full mt-2 border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500"
-          />
-        </div>
-
-        <div>
-          <label className="font-medium text-gray-700">
-            Password
-          </label>
-
-          <input
-            type="password"
-            placeholder="Enter your password"
-            value={password}
-            onChange={(e)=>setPassword(e.target.value)}
-            className="w-full mt-2 border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500"
-          />
-        </div>
-
-        <div className="flex justify-between text-sm">
-          <label>
-            <input type="checkbox" className="mr-2" />
-            Remember Me
-          </label>
-
-          <a href="#" className="text-purple-600">
-            Forgot Password?
-          </a>
-        </div>
-
-        <button
-          type="submit"
-          className="w-full py-3 rounded-xl text-white font-semibold bg-gradient-to-r from-purple-700 to-violet-500 hover:opacity-90 transition"
-        >
-          Login
-        </button>
-
-      </form>
-
-      <p className="text-center mt-6 text-gray-600">
-        Don't have an account?
-        <span className="text-purple-600 cursor-pointer">
-          {" "}Sign Up
-        </span>
-      </p>
-
     </div>
-  </div>
-);
-
+  );
 }
+

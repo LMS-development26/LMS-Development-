@@ -1,16 +1,15 @@
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Pencil, Upload, Users, ClipboardList, FileText, FileQuestion, Video,
   BarChart3, BookOpen, Clock, Tag as TagIcon,
 } from 'lucide-react';
-import { courseApi, moduleApi, lessonApi, assignmentApi, quizApi, meetingApi, reviewApi } from '@/services/api';
+import { courseApi, moduleApi, assignmentApi, quizApi, meetingApi, reviewApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
-import { Card, CardHeader, CardBody, Button, StatusBadge, StarRating, LoadingState, ProgressBar } from '@/components/ui';
+import { Card, CardHeader, CardBody, Button, StatusBadge, StarRating, LoadingState } from '@/components/ui';
 import { formatDate, formatPrice, formatDuration } from '@/utils/helpers';
 
 export function CourseDetail() {
   const { courseId } = useParams<{ courseId: string }>();
-  const navigate = useNavigate();
 
   const { data: course, loading } = useAsync(() => courseApi.getById(courseId!), [courseId]);
   const { data: modules } = useAsync(() => moduleApi.listByCourse(courseId!), [courseId]);
@@ -56,11 +55,11 @@ export function CourseDetail() {
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold text-gray-900">{formatPrice(course.price)}</p>
-                <StarRating rating={course.average_rating || 0} showValue reviewCount={course.review_count} />
+                <StarRating rating={course.average_rating || 0} showValue reviewCount={course.review_count || 0} />
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-500">
-              <span className="flex items-center gap-1"><Users className="h-4 w-4" /> {course.enrollment_count} students</span>
+              <span className="flex items-center gap-1"><Users className="h-4 w-4" /> {course.enrollment_count || 0} students</span>
               <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> {formatDuration(course.duration_minutes)}</span>
               <span className="flex items-center gap-1"><BookOpen className="h-4 w-4" /> {modules?.length || 0} modules</span>
               <span>Created {formatDate(course.created_at)}</span>

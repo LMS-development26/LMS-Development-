@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, getClient } = require('../config/database');
 
 // Get assignments by course
 const getAssignmentsByCourse = async (req, res, next) => {
@@ -114,14 +114,14 @@ const deleteAssignment = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const client = await query('getClient');
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
 
       // Delete submissions for this assignment
       await client.query(
-        'DELETE FROM assignment_submissions WHERE assignment_id = $1',
+        'DELETE FROM assignments_submissions WHERE assignment_id = $1',
         [id]
       );
 
@@ -163,11 +163,12 @@ const getSubmissions = async (req, res, next) => {
 
     const result = await query(
       `SELECT s.*,
-        u.first_name || ' ' || u.last_name as student_name,
+        sp.full_name as student_name,
         u.email as student_email,
         a.title as assignment_title
-      FROM assignment_submissions s
+      FROM assignments_submissions s
       JOIN users u ON s.student_id = u.id
+      JOIN student_profiles sp ON s.student_id = sp.user_id
       JOIN assignments a ON s.assignment_id = a.id
       WHERE s.assignment_id = $1
       ORDER BY s.submitted_at DESC`,
@@ -194,7 +195,7 @@ const getStudentSubmissions = async (req, res, next) => {
         a.due_date,
         a.max_marks,
         c.title as course_title
-      FROM assignment_submissions s
+      FROM assignments_submissions s
       JOIN assignments a ON s.assignment_id = a.id
       JOIN courses c ON a.course_id = c.id
       WHERE s.student_id = $1
@@ -219,7 +220,7 @@ const createSubmission = async (req, res, next) => {
 
     // Check if already submitted
     const existingSubmission = await query(
-      'SELECT id FROM assignment_submissions WHERE assignment_id = $1 AND student_id = $2',
+      'SELECT id FROM assignments_submissions WHERE assignment_id = $1 AND student_id = $2',
       [assignment_id, student_id]
     );
 
@@ -231,8 +232,8 @@ const createSubmission = async (req, res, next) => {
     }
 
     const result = await query(
-      `INSERT INTO assignment_submissions (assignment_id, student_id, submitted_file_url, submitted_at, status)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, 'SUBMITTED')
+      `INSERT INTO assignments_submissions (assignment_id, student_id, submission_url, submitted_at)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
        RETURNING *`,
       [assignment_id, student_id, submitted_file_url]
     );
@@ -253,13 +254,14 @@ const gradeSubmission = async (req, res, next) => {
     const { marks, feedback } = req.body;
 
     const result = await query(
-      `UPDATE assignment_submissions
-       SET marks = $1,
+      `UPDATE assignments_submissions
+       SET marks_obtained = $1,
            feedback = $2,
-           status = 'GRADED'
-       WHERE id = $3
+           graded_at = CURRENT_TIMESTAMP,
+           graded_by = $3
+       WHERE id = $4
        RETURNING *`,
-      [marks, feedback, id]
+      [marks, feedback, req.user.id, id]
     );
 
     if (result.rows.length === 0) {
@@ -284,7 +286,7 @@ const deleteSubmission = async (req, res, next) => {
     const { id } = req.params;
 
     const result = await query(
-      'DELETE FROM assignment_submissions WHERE id = $1 RETURNING *',
+      'DELETE FROM assignments_submissions WHERE id = $1 RETURNING *',
       [id]
     );
 

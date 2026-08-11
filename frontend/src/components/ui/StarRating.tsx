@@ -17,6 +17,9 @@ const sizeMap = {
 };
 
 export function StarRating({ rating, size = 'sm', showValue, reviewCount, interactive, onChange }: StarRatingProps) {
+  // Ensure rating is a number
+  const safeRating = typeof rating === 'number' ? rating : parseFloat(rating) || 0;
+
   return (
     <div className="flex items-center gap-1">
       <div className="flex items-center">
@@ -31,13 +34,13 @@ export function StarRating({ rating, size = 'sm', showValue, reviewCount, intera
             <Star
               className={classNames(
                 sizeMap[size],
-                star <= Math.round(rating) ? 'fill-amber-400 text-amber-400' : 'fill-gray-200 text-gray-200',
+                star <= Math.round(safeRating) ? 'fill-amber-400 text-amber-400' : 'fill-gray-200 text-gray-200',
               )}
             />
           </button>
         ))}
       </div>
-      {showValue && <span className="text-sm font-semibold text-gray-700">{rating.toFixed(1)}</span>}
+      {showValue && <span className="text-sm font-semibold text-gray-700">{safeRating.toFixed(1)}</span>}
       {reviewCount !== undefined && <span className="text-sm text-gray-400">({reviewCount})</span>}
     </div>
   );

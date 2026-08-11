@@ -1,48 +1,127 @@
 import { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import {
-  ArrowLeft, Play, Users, Clock, Star, Tag as TagIcon, CheckCircle2, BookOpen,
-  Award, Globe, GraduationCap,
+  ArrowLeft, Users, Clock, Tag as TagIcon, CheckCircle2, BookOpen,
+  Globe, GraduationCap,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { courseApi, moduleApi, lessonApi, enrollmentRequestApi, enrollmentApi, reviewApi } from '@/services/api';
-import { mockInstructorProfiles, mockUsers } from '@/data/mockData';
+import { courseApi, moduleApi, enrollmentApi, reviewApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
-import { Card, CardBody, CardHeader, Button, StarRating, StatusBadge, LoadingState, Modal } from '@/components/ui';
+import { Card, CardBody, CardHeader, Button, StarRating, LoadingState, EmptyState, Modal } from '@/components/ui';
 import { formatPrice, formatDuration, formatDate } from '@/utils/helpers';
+
+function parseJsonField<T>(value: unknown, fallback: T): T {
+  if (Array.isArray(value)) return value as T;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value || '[]');
+      return Array.isArray(parsed) ? parsed as T : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+}
 
 export function CourseDetails() {
   const { courseId } = useParams<{ courseId: string }>();
-  const navigate = useNavigate();
   const { user } = useAuth();
 
-  const { data: course, loading } = useAsync(() => courseApi.getById(courseId!), [courseId]);
-  const { data: modules } = useAsync(() => moduleApi.listByCourse(courseId!), [courseId]);
-  const { data: reviews } = useAsync(() => reviewApi.listByCourse(courseId!), [courseId]);
-  const { data: enrollmentRequest } = useAsync(() => enrollmentRequestApi.list({ courseId, status: 'PENDING' }), [courseId]);
-  const { data: enrollment } = useAsync(() => enrollmentApi.list({ courseId, studentId: user?.id }), [courseId, user?.id]);
+  const { data: course, loading: courseLoading, error: courseError } = useAsync(
+    () => (courseId ? courseApi.getById(courseId) : Promise.resolve(null)),
+    [courseId],
+  );
+  const { data: modules, loading: modulesLoading } = useAsync(
+    () => (courseId ? moduleApi.listByCourse(courseId) : Promise.resolve([])),
+    [courseId],
+  );
+  const { data: reviews, refetch: refetchReviews } = useAsync(
+    () => (courseId ? reviewApi.listByCourse(courseId) : Promise.resolve([])),
+    [courseId],
+  );
+  const { data: myEnrollments, refetch: refetchEnrollments } = useAsync(
+    () => enrollmentApi.listMyCourses(),
+    [user?.id],
+  );
+  const { data: existingReview, refetch: refetchExistingReview } = useAsync(
+    () => (courseId && user?.id ? reviewApi.getByStudent(courseId, user.id) : Promise.resolve(null)),
+    [courseId, user?.id],
+  );
 
   const [enrollModal, setEnrollModal] = useState(false);
   const [reviewModal, setReviewModal] = useState(false);
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
-  const { data: existingReview } = useAsync(() => reviewApi.getByStudent(courseId!, user?.id || ''), [courseId, user?.id]);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  if (loading || !course) return <LoadingState />;
+  const loading = courseLoading || modulesLoading;
 
-  const instructorProfile = mockInstructorProfiles.find((p) => p.id === course.instructor_id);
-  const instructorUser = mockUsers.find((u) => u.id === instructorProfile?.user_id);
+  if (loading) return <LoadingState />;
 
-  const isEnrolled = enrollment && enrollment.length > 0;
-  const hasPendingRequest = enrollmentRequest && enrollmentRequest.length > 0;
+  if (courseError) {
+    return (
+      <div className="space-y-6">
+        <Link to="/student/courses" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+          <ArrowLeft className="h-4 w-4" /> Back to Courses
+        </Link>
+        <Card>
+          <EmptyState title="Unable to load course" message={courseError} />
+        </Card>
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="space-y-6">
+        <Link to="/student/courses" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+          <ArrowLeft className="h-4 w-4" /> Back to Courses
+        </Link>
+        <Card>
+          <EmptyState title="Course not found" message="The course you're looking for doesn't exist or has been removed." />
+        </Card>
+      </div>
+    );
+  }
+
+  const learningOutcomes = parseJsonField<string[]>(course.learning_outcomes, []);
+  const prerequisites = parseJsonField<string[]>(course.prerequisites, []);
+  const durationMinutes = course.duration_minutes ?? (course.duration_hours ? course.duration_hours * 60 : 0);
+
+  const isEnrolled = myEnrollments?.some((e) => e.course_id === courseId) ?? false;
 
   const handleEnroll = async () => {
-    await enrollmentRequestApi.create(courseId!, user!.id);
-    setEnrollModal(false);
+    setActionError(null);
+    setSubmitting(true);
+    try {
+      await enrollmentApi.create(courseId!);
+      setEnrollModal(false);
+      refetchEnrollments();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Enrollment failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleReviewSubmit = async () => {
-    await reviewApi.create(courseId!, user!.id, reviewForm.rating, reviewForm.comment);
-    setReviewModal(false);
+    setActionError(null);
+    setSubmitting(true);
+    try {
+      await reviewApi.create({
+        course_id: courseId!,
+        rating: reviewForm.rating,
+        comment: reviewForm.comment,
+      });
+      setReviewModal(false);
+      setReviewForm({ rating: 5, comment: '' });
+      refetchReviews();
+      refetchExistingReview();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Failed to submit review. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -51,7 +130,12 @@ export function CourseDetails() {
         <ArrowLeft className="h-4 w-4" /> Back to Courses
       </Link>
 
-      {/* Course Header */}
+      {actionError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
+
       <Card className="overflow-hidden">
         <div className="flex flex-col lg:flex-row">
           <div className="h-56 w-full bg-gray-200 lg:h-auto lg:w-96">
@@ -68,27 +152,28 @@ export function CourseDetails() {
 
             <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-gray-500">
               <span className="flex items-center gap-1"><StarRating rating={course.average_rating || 0} showValue /></span>
-              <span className="flex items-center gap-1"><Users className="h-4 w-4" /> {course.enrollment_count} students</span>
+              <span className="flex items-center gap-1"><Users className="h-4 w-4" /> {course.enrollment_count || 0} students</span>
               <span className="flex items-center gap-1"><Globe className="h-4 w-4" /> {course.language}</span>
-              <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> {formatDuration(course.duration_minutes)}</span>
+              <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> {formatDuration(durationMinutes)}</span>
             </div>
 
             <div className="mt-4 flex items-center gap-3">
-              {instructorProfile?.avatar_url && <img src={instructorProfile.avatar_url} alt={instructorUser?.first_name} className="h-10 w-10 rounded-full" />}
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-600">
+                {course.instructor_name?.charAt(0) || 'I'}
+              </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">{instructorUser?.first_name} {instructorUser?.last_name}</p>
-                <p className="text-xs text-gray-500">{instructorProfile?.expertise}</p>
+                <p className="text-sm font-medium text-gray-900">{course.instructor_name || 'Instructor'}</p>
               </div>
             </div>
 
             <div className="mt-5 flex items-center gap-3">
               <span className="text-3xl font-bold text-gray-900">{formatPrice(course.price)}</span>
               {isEnrolled ? (
-                <Link to={`/student/courses/${courseId}/learn`}><Button size="lg" variant="success"><GraduationCap className="h-5 w-5" /> Start Learning</Button></Link>
-              ) : hasPendingRequest ? (
-                <Button size="lg" disabled><StatusBadge status="PENDING" /> Enrollment Request Pending</Button>
+                <Link to={`/student/courses/${courseId}/learn`}>
+                  <Button size="lg" variant="success"><GraduationCap className="h-5 w-5" /> Start Learning</Button>
+                </Link>
               ) : (
-                <Button size="lg" onClick={() => setEnrollModal(true)}>Request Enrollment</Button>
+                <Button size="lg" onClick={() => setEnrollModal(true)}>Enroll Now</Button>
               )}
             </div>
           </div>
@@ -97,7 +182,6 @@ export function CourseDetails() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          {/* About */}
           <Card>
             <CardHeader title="About This Course" />
             <CardBody>
@@ -105,13 +189,12 @@ export function CourseDetails() {
             </CardBody>
           </Card>
 
-          {/* Learning Outcomes */}
-          {course.learning_outcomes.length > 0 && (
+          {learningOutcomes.length > 0 && (
             <Card>
               <CardHeader title="Learning Outcomes" />
               <CardBody>
                 <ul className="space-y-2">
-                  {course.learning_outcomes.map((outcome, i) => (
+                  {learningOutcomes.map((outcome, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" /> {outcome}
                     </li>
@@ -121,13 +204,12 @@ export function CourseDetails() {
             </Card>
           )}
 
-          {/* Prerequisites */}
-          {course.prerequisites.length > 0 && (
+          {prerequisites.length > 0 && (
             <Card>
               <CardHeader title="Prerequisites" />
               <CardBody>
                 <ul className="space-y-2">
-                  {course.prerequisites.map((prereq, i) => (
+                  {prerequisites.map((prereq, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
                       <BookOpen className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400" /> {prereq}
                     </li>
@@ -137,7 +219,6 @@ export function CourseDetails() {
             </Card>
           )}
 
-          {/* Curriculum */}
           <Card>
             <CardHeader title="Course Curriculum" subtitle={`${modules?.length || 0} modules`} />
             <CardBody>
@@ -147,7 +228,9 @@ export function CourseDetails() {
                 <div className="space-y-3">
                   {modules.map((mod) => (
                     <div key={mod.id} className="rounded-lg border border-gray-100 p-3">
-                      <p className="text-sm font-semibold text-gray-900">{mod.display_order}. {mod.name}</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {mod.display_order || mod.module_order || ''}. {mod.module_name || mod.name}
+                      </p>
                       {mod.description && <p className="mt-0.5 text-xs text-gray-500">{mod.description}</p>}
                     </div>
                   ))}
@@ -156,7 +239,6 @@ export function CourseDetails() {
             </CardBody>
           </Card>
 
-          {/* Reviews */}
           <Card>
             <CardHeader
               title="Student Reviews"
@@ -189,7 +271,6 @@ export function CourseDetails() {
           </Card>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-4">
           <Card>
             <CardBody>
@@ -200,8 +281,8 @@ export function CourseDetails() {
                 </div>
                 <div className="flex items-center justify-between"><span className="text-gray-500">Difficulty</span><span className="font-medium text-gray-900">{course.difficulty}</span></div>
                 <div className="flex items-center justify-between"><span className="text-gray-500">Language</span><span className="font-medium text-gray-900">{course.language}</span></div>
-                <div className="flex items-center justify-between"><span className="text-gray-500">Duration</span><span className="font-medium text-gray-900">{formatDuration(course.duration_minutes)}</span></div>
-                <div className="flex items-center justify-between"><span className="text-gray-500">Students</span><span className="font-medium text-gray-900">{course.enrollment_count}</span></div>
+                <div className="flex items-center justify-between"><span className="text-gray-500">Duration</span><span className="font-medium text-gray-900">{formatDuration(durationMinutes)}</span></div>
+                <div className="flex items-center justify-between"><span className="text-gray-500">Students</span><span className="font-medium text-gray-900">{course.enrollment_count || 0}</span></div>
                 <div className="flex items-center justify-between"><span className="text-gray-500">Rating</span><StarRating rating={course.average_rating || 0} showValue /></div>
               </div>
               {course.tags && course.tags.length > 0 && (
@@ -221,19 +302,48 @@ export function CourseDetails() {
         </div>
       </div>
 
-      {/* Enrollment Modal */}
-      <Modal open={enrollModal} onClose={() => setEnrollModal(false)} title="Request Enrollment" footer={<><Button variant="outline" onClick={() => setEnrollModal(false)}>Cancel</Button><Button onClick={handleEnroll}>Submit Request</Button></>}>
-        <p className="text-sm text-gray-600">You are about to request enrollment for <span className="font-semibold">"{course.title}"</span>. The instructor will review your request and you'll be notified when it's approved.</p>
+      <Modal
+        open={enrollModal}
+        onClose={() => setEnrollModal(false)}
+        title="Enroll in Course"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setEnrollModal(false)}>Cancel</Button>
+            <Button onClick={handleEnroll} disabled={submitting}>{submitting ? 'Enrolling...' : 'Confirm Enrollment'}</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-600">
+          You are about to enroll in <span className="font-semibold">"{course.title}"</span>.
+          You will gain immediate access to all course content.
+        </p>
       </Modal>
 
-      {/* Review Modal */}
-      <Modal open={reviewModal} onClose={() => setReviewModal(false)} title="Write a Review" footer={<><Button variant="outline" onClick={() => setReviewModal(false)}>Cancel</Button><Button variant="success" onClick={handleReviewSubmit}>Submit Review</Button></>}>
+      <Modal
+        open={reviewModal}
+        onClose={() => setReviewModal(false)}
+        title="Write a Review"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setReviewModal(false)}>Cancel</Button>
+            <Button variant="success" onClick={handleReviewSubmit} disabled={submitting}>
+              {submitting ? 'Submitting...' : 'Submit Review'}
+            </Button>
+          </>
+        }
+      >
         <div className="space-y-4">
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">Rating</label>
             <StarRating rating={reviewForm.rating} size="lg" interactive onChange={(r) => setReviewForm({ ...reviewForm, rating: r })} />
           </div>
-          <textarea className="block w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200" rows={4} placeholder="Share your experience..." value={reviewForm.comment} onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })} />
+          <textarea
+            className="block w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            rows={4}
+            placeholder="Share your experience..."
+            value={reviewForm.comment}
+            onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+          />
         </div>
       </Modal>
     </div>

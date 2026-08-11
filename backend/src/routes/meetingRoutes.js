@@ -1,7 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const meetingController = require('../controllers/meetingController');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/authMiddleware');
 const { handleValidationErrors } = require('../middleware/validation');
 
 const router = express.Router();
@@ -12,8 +12,8 @@ const createMeetingValidation = [
   body('title').notEmpty().withMessage('Meeting title is required'),
   body('meeting_date').notEmpty().withMessage('Meeting date is required'),
   body('start_time').notEmpty().withMessage('Start time is required'),
-  body('end_time').notEmpty().withMessage('End time is required'),
-  body('google_meet_link').notEmpty().withMessage('Google Meet link is required')
+  body('end_time').notEmpty().withMessage('End time is required')
+  // google_meet_link is optional - can be added later
 ];
 
 // Meeting routes

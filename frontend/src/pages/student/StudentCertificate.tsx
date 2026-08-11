@@ -3,18 +3,67 @@ import { ArrowLeft, Award, Download, ShieldCheck, GraduationCap } from 'lucide-r
 import { useAuth } from '@/context/AuthContext';
 import { courseApi, certificateApi, progressApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
-import { Card, CardBody, Button, LoadingState, EmptyState } from '@/components/ui';
+import { Card, Button, LoadingState, EmptyState } from '@/components/ui';
 import { formatDate } from '@/utils/helpers';
 
 export function StudentCertificate() {
   const { courseId } = useParams<{ courseId: string }>();
   const { user } = useAuth();
 
-  const { data: course } = useAsync(() => courseApi.getById(courseId!), [courseId]);
-  const { data: certificate, loading } = useAsync(() => certificateApi.getByCourseAndStudent(courseId!, user?.id || ''), [courseId, user?.id]);
-  const { data: progress } = useAsync(() => progressApi.getByCourseAndStudent(courseId!, user?.id || ''), [courseId, user?.id]);
+  const { data: course, loading: courseLoading, error: courseError } = useAsync(
+    () => (courseId ? courseApi.getById(courseId) : Promise.resolve(null)),
+    [courseId],
+  );
 
-  if (loading) return <LoadingState />;
+  const { data: certificate, loading: certLoading, error: certError } = useAsync(
+    () => (courseId && user?.id ? certificateApi.getByCourseAndStudent(courseId, user.id) : Promise.resolve(null)),
+    [courseId, user?.id],
+  );
+
+  const { data: progress } = useAsync(
+    () => (courseId && user?.id ? progressApi.getByCourseAndStudent(courseId, user.id) : Promise.resolve(null)),
+    [courseId, user?.id],
+  );
+
+  const loading = courseLoading || certLoading;
+
+  if (loading) {
+    return <LoadingState />;
+  }
+
+  if (courseError || certError) {
+    return (
+      <div className="space-y-6">
+        <Link to="/student/my-courses" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+          <ArrowLeft className="h-4 w-4" /> Back to My Courses
+        </Link>
+        <Card>
+          <EmptyState
+            icon={<Award className="h-12 w-12" />}
+            title="Unable to load certificate"
+            message={courseError || certError || 'Something went wrong. Please try again.'}
+          />
+        </Card>
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="space-y-6">
+        <Link to="/student/my-courses" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+          <ArrowLeft className="h-4 w-4" /> Back to My Courses
+        </Link>
+        <Card>
+          <EmptyState
+            icon={<Award className="h-12 w-12" />}
+            title="Course not found"
+            message="The course you're looking for doesn't exist."
+          />
+        </Card>
+      </div>
+    );
+  }
 
   if (!certificate) {
     return (
@@ -26,9 +75,11 @@ export function StudentCertificate() {
           <EmptyState
             icon={<Award className="h-12 w-12" />}
             title="No certificate yet"
-            message={progress?.progress_percentage === 100
-              ? "You've completed the course! Your certificate is being generated."
-              : `Complete the course to earn your certificate. Current progress: ${progress?.progress_percentage || 0}%`}
+            message={
+              progress?.progress_percentage === 100
+                ? "You've completed the course! Your certificate is being generated."
+                : `Complete the course to earn your certificate. Current progress: ${progress?.progress_percentage ?? 0}%`
+            }
           />
         </Card>
       </div>
@@ -46,10 +97,8 @@ export function StudentCertificate() {
         <p className="mt-1 text-sm text-gray-500">Congratulations on completing the course!</p>
       </div>
 
-      {/* Certificate */}
       <Card className="overflow-hidden">
         <div className="relative bg-gradient-to-br from-blue-50 via-white to-emerald-50 p-8 lg:p-12">
-          {/* Decorative border */}
           <div className="absolute inset-4 rounded-xl border-4 border-double border-blue-200" />
 
           <div className="relative text-center">
@@ -60,7 +109,7 @@ export function StudentCertificate() {
             <p className="mt-6 text-sm text-gray-500">This is to certify that</p>
             <h2 className="mt-2 text-3xl font-bold text-gray-900">{certificate.student_name}</h2>
             <p className="mt-4 text-sm text-gray-500">has successfully completed the course</p>
-            <h3 className="mt-2 text-xl font-semibold text-blue-700">{course?.title}</h3>
+            <h3 className="mt-2 text-xl font-semibold text-blue-700">{course.title}</h3>
 
             <div className="mt-8 flex items-center justify-center gap-12">
               <div className="text-center">
@@ -82,7 +131,6 @@ export function StudentCertificate() {
         </div>
       </Card>
 
-      {/* Actions */}
       <div className="flex flex-wrap gap-3">
         <Button variant="outline"><Download className="h-4 w-4" /> Download PDF</Button>
         <Button variant="outline"><ShieldCheck className="h-4 w-4" /> Verify Certificate</Button>
