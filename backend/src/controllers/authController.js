@@ -84,6 +84,8 @@ const login = async (req, res, next) => {
       [email]
     );
 
+    const user = result.rows && result.rows.length > 0 ? result.rows[0] : null;
+
     if (!user) {
       return res.status(401).json({
         success: false,
