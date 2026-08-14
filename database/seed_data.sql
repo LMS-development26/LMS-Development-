@@ -331,31 +331,83 @@ INSERT INTO question_options (question_id, option_text, is_correct) VALUES
 -- INSERT SAMPLE MEETINGS
 -- ==========================================
 
-INSERT INTO meetings (course_id, instructor_id, title, description, meeting_link, scheduled_start, scheduled_end) VALUES
-((SELECT id FROM courses WHERE title = 'Complete Web Development Bootcamp'),
- (SELECT id FROM users WHERE email = 'instructor1@lms.com'),
- 'Live Q&A Session',
- 'Weekly Q&A session for students to ask questions about course content',
- 'https://meet.google.com/abc-def-ghi',
- CURRENT_TIMESTAMP + INTERVAL '2 days',
- CURRENT_TIMESTAMP + INTERVAL '2 days' + INTERVAL '1 hour'),
+INSERT INTO meetings
+(
+    course_id,
+    instructor_id,
+    title,
+    description,
+    meeting_date,
+    start_time,
+    end_time,
+    google_meet_link
+)
+VALUES
 
-((SELECT id FROM courses WHERE title = 'Data Science with Python'),
- (SELECT id FROM users WHERE email = 'instructor2@lms.com'),
- 'Project Review Session',
- 'Live review of student data analysis projects',
- 'https://meet.google.com/jkl-mno-pqr',
- CURRENT_TIMESTAMP + INTERVAL '5 days',
- CURRENT_TIMESTAMP + INTERVAL '5 days' + INTERVAL '2 hours'),
+(
+    (SELECT id
+     FROM courses
+     WHERE title = 'Complete Web Development Bootcamp'),
 
-((SELECT id FROM courses WHERE title = 'React Native Mobile Development'),
- (SELECT id FROM users WHERE email = 'instructor3@lms.com'),
- 'Office Hours',
- 'Weekly office hours for one-on-one help',
- 'https://meet.google.com/stu-vwx-yz',
- CURRENT_TIMESTAMP + INTERVAL '3 days',
- CURRENT_TIMESTAMP + INTERVAL '3 days' + INTERVAL '1 hour');
+    (SELECT id
+     FROM users
+     WHERE email = 'instructor1@lms.com'),
 
+    'Live Q&A Session',
+    'Weekly Q&A session for students to ask questions about course content',
+
+    CURRENT_DATE + 2,
+
+    '10:00:00',
+
+    '11:00:00',
+
+    'https://meet.google.com/abc-def-ghi'
+),
+
+(
+    (SELECT id
+     FROM courses
+     WHERE title = 'Data Science with Python'),
+
+    (SELECT id
+     FROM users
+     WHERE email = 'instructor2@lms.com'),
+
+    'Project Review Session',
+
+    'Live review of student data analysis projects',
+
+    CURRENT_DATE + 5,
+
+    '14:00:00',
+
+    '16:00:00',
+
+    'https://meet.google.com/jkl-mno-pqr'
+),
+
+(
+    (SELECT id
+     FROM courses
+     WHERE title = 'React Native Mobile Development'),
+
+    (SELECT id
+     FROM users
+     WHERE email = 'instructor3@lms.com'),
+
+    'Office Hours',
+
+    'Weekly office hours for one-on-one help',
+
+    CURRENT_DATE + 3,
+
+    '11:00:00',
+
+    '12:00:00',
+
+    'https://meet.google.com/stu-vwx-yz'
+);
 -- ==========================================
 -- INSERT SAMPLE NOTIFICATIONS
 -- ==========================================

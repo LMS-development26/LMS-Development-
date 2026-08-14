@@ -84,14 +84,14 @@ const result = await query(
   [email]
 );
 
-if (result.rows.length === 0) {
+const user = result.rows && result.rows.length > 0 ? result.rows[0] : null;
+
+if (!user) {
   return res.status(401).json({
     success: false,
     error: 'Invalid credentials'
   });
 }
-
-const user = result.rows[0];
 
     // Check if user is active
     if (user.status !== 'ACTIVE') {
