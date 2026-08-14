@@ -79,17 +79,19 @@ const login = async (req, res, next) => {
     const { email, password } = req.body;
 
     // Check if user exists
-    const result = await query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    );
+const result = await query(
+  'SELECT * FROM users WHERE email = $1',
+  [email]
+);
 
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid credentials'
-      });
-    }
+if (result.rows.length === 0) {
+  return res.status(401).json({
+    success: false,
+    error: 'Invalid credentials'
+  });
+}
+
+const user = result.rows[0];
 
     // Check if user is active
     if (user.status !== 'ACTIVE') {
