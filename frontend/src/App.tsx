@@ -16,8 +16,7 @@ import { CourseManagement } from '@/pages/instructor/CourseManagement';
 import { CreateCourse } from '@/pages/instructor/CreateCourse';
 import { CourseDetail } from '@/pages/instructor/CourseDetail';
 import { CourseBuilder } from '@/pages/instructor/CourseBuilder';
-import { EnrollmentManagement } from '@/pages/instructor/EnrollmentManagement';
-import { GlobalEnrollmentRequests } from '@/pages/instructor/GlobalEnrollmentRequests';
+
 import { EnrolledStudents } from '@/pages/instructor/EnrolledStudents';
 import { GlobalEnrolledStudents } from '@/pages/instructor/GlobalEnrolledStudents';
 import { AssignmentManagement } from '@/pages/instructor/AssignmentManagement';
@@ -78,15 +77,15 @@ function AppRoutes() {
         <Route path="courses/:courseId" element={<CourseDetail />} />
         <Route path="courses/:courseId/edit" element={<CreateCourse />} />
         <Route path="courses/:courseId/builder" element={<CourseBuilder />} />
-        <Route path="courses/:courseId/enrollments" element={<EnrollmentManagement />} />
+        
         <Route path="courses/:courseId/students" element={<EnrolledStudents />} />
         <Route path="courses/:courseId/assignments" element={<AssignmentManagement />} />
         <Route path="courses/:courseId/quizzes" element={<QuizManagement />} />
         <Route path="courses/:courseId/meetings" element={<MeetingManagement />} />
         <Route path="courses/:courseId/analytics" element={<CourseAnalytics />} />
-        <Route path="enrollment-requests" element={<GlobalEnrollmentRequests />} />
+        
         <Route path="enrolled-students" element={<GlobalEnrolledStudents />} />
-        <Route path="enrollments" element={<EnrollmentManagement />} />
+       
         <Route path="students" element={<EnrolledStudents />} />
       </Route>
 

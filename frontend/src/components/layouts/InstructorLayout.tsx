@@ -20,7 +20,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: '/instructor/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-5 w-5" />, end: true },
   { to: '/instructor/courses', label: 'Courses', icon: <BookOpen className="h-5 w-5" /> },
-  { to: '/instructor/enrollment-requests', label: 'Enrollment Requests', icon: <ClipboardList className="h-5 w-5" /> },
+ 
   { to: '/instructor/enrolled-students', label: 'Enrolled Students', icon: <Users className="h-5 w-5" /> },
 ];
 

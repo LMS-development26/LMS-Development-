@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, CheckCircle2, FileEdit, Archive, Users, ClipboardList, TrendingUp, Plus, Eye } from 'lucide-react';
+import { BookOpen, CheckCircle2, FileEdit, Archive, Users, TrendingUp, Plus, Eye } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { courseApi, enrollmentRequestApi, authApi } from '@/services/api';
+import { courseApi, authApi } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
 import { StatCard, Card, CardHeader, CardBody, Button, StatusBadge, ProgressBar, StarRating, EmptyState, LoadingState } from '@/components/ui';
 import { formatDate, formatPrice } from '@/utils/helpers';
@@ -13,14 +13,7 @@ export function InstructorDashboard() {
 
   const { data: courses, loading: coursesLoading } = useAsync(() => instructorProfile?.user_id ? courseApi.list({ instructorId: instructorProfile.user_id }) : Promise.resolve([]), [instructorProfile?.user_id]);
 
-  // Fetch enrollment requests for all instructor courses
-  const { data: pendingRequests } = useAsync(async () => {
-    if (!courses || courses.length === 0) return [];
-    const allRequests = await Promise.all(
-      courses.map(course => enrollmentRequestApi.listByCourse(course.id))
-    );
-    return allRequests.flat();
-  }, [courses]);
+  
 
   if (profileLoading || coursesLoading) return <LoadingState />;
 
@@ -44,13 +37,12 @@ export function InstructorDashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard label="Total Courses" value={courses?.length || 0} icon={<BookOpen className="h-6 w-6" />} color="blue" />
         <StatCard label="Published" value={publishedCourses.length} icon={<CheckCircle2 className="h-6 w-6" />} color="emerald" />
         <StatCard label="Drafts" value={draftCourses.length} icon={<FileEdit className="h-6 w-6" />} color="amber" />
         <StatCard label="Archived" value={archivedCourses.length} icon={<Archive className="h-6 w-6" />} color="gray" />
         <StatCard label="Total Enrollments" value={totalEnrollments} icon={<Users className="h-6 w-6" />} color="violet" />
-        <StatCard label="Pending Requests" value={pendingRequests?.length || 0} icon={<ClipboardList className="h-6 w-6" />} color="red" />
       </div>
 
       {/* Recently Added Courses */}
@@ -84,30 +76,8 @@ export function InstructorDashboard() {
         </CardBody>
       </Card>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Pending Enrollment Requests */}
-        <Card>
-          <CardHeader title="Pending Enrollment Requests" action={<Link to="/instructor/enrollment-requests"><Button variant="ghost" size="sm">View all</Button></Link>} />
-          <CardBody>
-            {(!pendingRequests || pendingRequests.length === 0) ? (
-              <EmptyState icon={<ClipboardList className="h-10 w-10" />} title="No pending requests" />
-            ) : (
-              <div className="space-y-3">
-                {pendingRequests.slice(0, 5).map((req) => (
-                  <div key={req.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-3">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{req.student_name}</p>
-                      <p className="text-xs text-gray-500">{req.course_title}</p>
-                      <p className="text-xs text-gray-400">{formatDate(req.requested_at)}</p>
-                    </div>
-                    <StatusBadge status={req.status} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardBody>
-        </Card>
-
+      
+        
         {/* Course Performance */}
         <Card>
           <CardHeader title="Course Performance" />
@@ -134,7 +104,7 @@ export function InstructorDashboard() {
             )}
           </CardBody>
         </Card>
-      </div>
+      
 
       {/* Student Engagement */}
       <Card>
