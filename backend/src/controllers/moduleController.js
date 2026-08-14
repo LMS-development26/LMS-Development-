@@ -6,7 +6,7 @@ const getModulesByCourse = async (req, res, next) => {
     const { courseId } = req.params;
 
     const result = await query(
-      'SELECT * FROM course_modules WHERE course_id = $1 ORDER BY display_order',
+      'SELECT id, course_id, module_name AS name, description, display_order, created_at, updated_at FROM course_modules WHERE course_id = $1 ORDER BY display_order',
       [courseId]
     );
 
@@ -25,9 +25,18 @@ const getModule = async (req, res, next) => {
     const { id } = req.params;
 
     const result = await query(
-      'SELECT * FROM course_modules WHERE id = $1',
-      [id]
-    );
+  `SELECT
+      id,
+      course_id,
+      module_name AS name,
+      description,
+      display_order,
+      created_at,
+      updated_at
+   FROM course_modules
+   WHERE id = $1`,
+  [id]
+);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -61,11 +70,19 @@ const createModule = async (req, res, next) => {
     }
 
     const result = await query(
-      `INSERT INTO course_modules (course_id, module_name, description, display_order, created_at)
-       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
-       RETURNING *`,
-      [course_id, name, description, order]
-    );
+  `INSERT INTO course_modules
+   (course_id, module_name, description, display_order, created_at)
+   VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+   RETURNING
+     id,
+     course_id,
+     module_name AS name,
+     description,
+     display_order,
+     created_at,
+     updated_at`,
+  [course_id, name, description, order]
+);
 
     res.status(201).json({
       success: true,
@@ -83,14 +100,21 @@ const updateModule = async (req, res, next) => {
     const { name, description, display_order } = req.body;
 
     const result = await query(
-      `UPDATE course_modules
-       SET module_name = COALESCE($1, module_name),
-           description = COALESCE($2, description),
-           display_order = COALESCE($3, display_order)
-       WHERE id = $4
-       RETURNING *`,
-      [name, description, display_order, id]
-    );
+  `UPDATE course_modules
+   SET module_name = COALESCE($1, module_name),
+       description = COALESCE($2, description),
+       display_order = COALESCE($3, display_order)
+   WHERE id = $4
+   RETURNING
+     id,
+     course_id,
+     module_name AS name,
+     description,
+     display_order,
+     created_at,
+     updated_at`,
+  [name, description, display_order, id]
+);
 
     if (result.rows.length === 0) {
       return res.status(404).json({

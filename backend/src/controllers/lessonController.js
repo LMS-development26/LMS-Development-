@@ -6,9 +6,21 @@ const getLessonsByModule = async (req, res, next) => {
     const { moduleId } = req.params;
 
     const result = await query(
-      'SELECT * FROM lessons WHERE module_id = $1 ORDER BY lesson_order',
-      [moduleId]
-    );
+  `SELECT
+      id,
+      module_id,
+      lesson_title AS title,
+      description,
+      lesson_order AS display_order,
+      duration_minutes,
+      is_preview,
+      created_at,
+      updated_at
+   FROM lessons
+   WHERE module_id = $1
+   ORDER BY lesson_order`,
+  [moduleId]
+);
 
     res.json({
       success: true,
@@ -25,9 +37,20 @@ const getLesson = async (req, res, next) => {
     const { id } = req.params;
 
     const result = await query(
-      'SELECT * FROM lessons WHERE id = $1',
-      [id]
-    );
+  `SELECT
+      id,
+      module_id,
+      lesson_title AS title,
+      description,
+      lesson_order AS display_order,
+      duration_minutes,
+      is_preview,
+      created_at,
+      updated_at
+   FROM lessons
+   WHERE id = $1`,
+  [id]
+);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -61,11 +84,21 @@ const createLesson = async (req, res, next) => {
     }
 
     const result = await query(
-      `INSERT INTO lessons (module_id, lesson_title, description, lesson_order, duration_minutes, is_preview, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
-       RETURNING *`,
-      [module_id, title, description, order, duration_minutes, is_preview || false]
-    );
+  `INSERT INTO lessons
+   (module_id, lesson_title, description, lesson_order, duration_minutes, is_preview, created_at)
+   VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+   RETURNING
+     id,
+     module_id,
+     lesson_title AS title,
+     description,
+     lesson_order AS display_order,
+     duration_minutes,
+     is_preview,
+     created_at,
+     updated_at`,
+  [module_id, title, description, order, duration_minutes, is_preview || false]
+);
 
     res.status(201).json({
       success: true,
@@ -90,7 +123,16 @@ const updateLesson = async (req, res, next) => {
            duration_minutes = COALESCE($4, duration_minutes),
            is_preview = COALESCE($5, is_preview)
        WHERE id = $6
-       RETURNING *`,
+       RETURNING
+  id,
+  module_id,
+  lesson_title AS title,
+  description,
+  lesson_order AS display_order,
+  duration_minutes,
+  is_preview,
+  created_at,
+  updated_at`,
       [title, description, lesson_order, duration_minutes, is_preview, id]
     );
 

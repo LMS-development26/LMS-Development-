@@ -96,6 +96,7 @@ export interface CourseModule {
   description: string | null;
   display_order: number;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Lesson {
@@ -105,7 +106,9 @@ export interface Lesson {
   description: string | null;
   display_order: number;
   duration_minutes: number | null;
+  is_preview: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 export interface LearningMaterial {
