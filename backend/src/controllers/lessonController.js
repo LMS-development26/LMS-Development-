@@ -72,7 +72,12 @@ const getLesson = async (req, res, next) => {
 const createLesson = async (req, res, next) => {
   try {
     const { module_id, title, description, lesson_order, duration_minutes, is_preview } = req.body;
-
+    if (duration_minutes === undefined || duration_minutes === null || duration_minutes < 30) {
+      return res.status(400).json({
+        success: false,
+        error: 'Lesson duration must be at least 30 minutes'
+      });
+    }
     // Get next lesson order if not provided
     let order = lesson_order;
     if (!order) {
@@ -114,7 +119,12 @@ const updateLesson = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { title, description, lesson_order, duration_minutes, is_preview } = req.body;
-
+    if (duration_minutes !== undefined && duration_minutes !== null && duration_minutes < 30) {
+      return res.status(400).json({
+        success: false,
+        error: 'Lesson duration must be at least 30 minutes'
+      });
+    }
     const result = await query(
       `UPDATE lessons
        SET lesson_title = COALESCE($1, lesson_title),

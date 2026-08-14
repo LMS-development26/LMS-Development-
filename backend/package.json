@@ -2,8 +2,7 @@
   "name": "lms-backend",
   "version": "1.0.0",
   "description": "Learning Management System Backend API",
-  "main": "src/server.js",
-  "scripts": {
+  "main": "src/server.js",  "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "setup-db": "node scripts/setupDatabase.js",
