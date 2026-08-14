@@ -4,12 +4,12 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 // Database connection for setup
-const setupPool = new Pool({
+const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
-  database: 'postgres', // Connect to default database first
+  database: process.env.DB_NAME || 'lms_database',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'Nikki@3001'
+  password: process.env.DB_PASSWORD
 });
 
 async function setupDatabase() {

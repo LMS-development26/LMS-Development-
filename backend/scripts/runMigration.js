@@ -1,14 +1,15 @@
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
+require('dotenv').config();
 
 // Database connection
 const pool = new Pool({
-  host: 'localhost',
-  port: 5432,
-  database: 'lms_database',
-  user: 'postgres',
-  password: 'Nikki@3001'
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'lms_database',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD
 });
 
 async function runMigration(migrationFile) {
