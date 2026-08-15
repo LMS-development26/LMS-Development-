@@ -43,7 +43,19 @@ const notFoundHandler = require('./middleware/notFoundHandler');
 const app = express();
 
 // Security middleware
-app.use(helmet());
+// Allow the frontend to display uploaded images/videos served by the backend.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "blob:", "http://localhost:5000"],
+        mediaSrc: ["'self'", "data:", "blob:", "http://localhost:5000"],
+        connectSrc: ["'self'", "http://localhost:5000", "http://localhost:5173"],
+      },
+    },
+  })
+);
 
 // CORS configuration
 app.use(cors({
@@ -84,12 +96,16 @@ app.use(express.urlencoded({ extended: true }));
 
 // Timeout
 app.use((req, res, next) => {
-  res.setTimeout(30000, () => {
-    res.status(504).json({
-      success: false,
-      error: 'Request timeout'
-    });
+  // Allow enough time for large image/video uploads.
+  res.setTimeout(10 * 60 * 1000, () => {
+    if (!res.headersSent) {
+      res.status(504).json({
+        success: false,
+        error: 'Request timeout'
+      });
+    }
   });
+
   next();
 });
 

@@ -58,30 +58,82 @@ export function CreateCourse() {
   };
 
   const simulateUpload = async (type: 'thumbnail' | 'video', file: File) => {
-    setUploadProgress((prev) => ({ ...prev, [type]: 0 }));
-    
+    const isThumbnail = type === 'thumbnail';
+
+    // Client-side validation
+    const maxSize = isThumbnail
+      ? 5 * 1024 * 1024
+      : 500 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      alert(
+        isThumbnail
+          ? 'Thumbnail must be smaller than 5MB.'
+          : 'Promotional video must be smaller than 500MB.'
+      );
+      return;
+    }
+
+    if (isThumbnail && !file.type.startsWith('image/')) {
+      alert('Please select a valid image file.');
+      return;
+    }
+
+    if (!isThumbnail && !file.type.startsWith('video/')) {
+      alert('Please select a valid video file.');
+      return;
+    }
+
+    setUploadProgress((prev) => ({ ...prev, [type]: 1 }));
+
     try {
       const formData = new FormData();
       formData.append('file', file);
 
-      const endpoint = type === 'thumbnail' ? '/upload/image' : '/upload/video';
+      const endpoint = isThumbnail ? '/upload/image' : '/upload/video';
+
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         body: formData,
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        updateForm(type === 'thumbnail' ? 'thumbnail_url' : 'promotional_video_url', `${API_BASE_URL.replace('/api', '')}${data.data.url}`);
-        setUploadProgress((prev) => ({ ...prev, [type]: 100 }));
-      } else {
-        throw new Error(data.error || 'Upload failed');
+      let data: any;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(`Upload failed with HTTP ${response.status}.`);
       }
+
+      if (!response.ok || !data?.success || !data?.data?.url) {
+        throw new Error(data?.error || `Upload failed with HTTP ${response.status}.`);
+      }
+
+      const backendBaseUrl = API_BASE_URL.replace(/\/api\/?$/, '');
+      const returnedUrl = String(data.data.url);
+
+      // The backend currently returns /uploads/<filename>.
+      // Also support an absolute URL so this continues to work if S3 is
+      // introduced later.
+      const fileUrl = /^https?:\/\//i.test(returnedUrl)
+        ? returnedUrl
+        : `${backendBaseUrl}${returnedUrl.startsWith('/') ? '' : '/'}${returnedUrl}`;
+
+      updateForm(
+        isThumbnail ? 'thumbnail_url' : 'promotional_video_url',
+        fileUrl
+      );
+
+      setUploadProgress((prev) => ({ ...prev, [type]: 100 }));
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error(`${type} upload error:`, error);
+
       setUploadProgress((prev) => ({ ...prev, [type]: 0 }));
-      alert('Upload failed. Please try again.');
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Upload failed. Please try again.'
+      );
     }
   };
 
@@ -135,8 +187,8 @@ export function CreateCourse() {
         difficulty: form.difficulty,
         language: form.language,
         price: form.isFree ? 0 : form.price,
-        thumbnail_url: form.thumbnail_url || null,
-        promotional_video_url: form.promotional_video_url || null,
+        thumbnail_url: form.thumbnail_url.trim() || null,
+        promotional_video_url: form.promotional_video_url.trim() || null,
         duration_minutes: form.duration_minutes || null,
         learning_outcomes: form.learning_outcomes.filter((s) => s.trim()),
         prerequisites: form.prerequisites.filter((s) => s.trim()),
@@ -214,7 +266,7 @@ export function CreateCourse() {
         {currentStep === 1 && (
           <div className="space-y-6">
             <h2 className="text-lg font-semibold text-gray-900">Course Media</h2>
-            <p className="text-sm text-gray-500">Upload your course thumbnail and promotional video. Files are stored in Amazon S3.</p>
+            <p className="text-sm text-gray-500">Upload your course thumbnail and promotional video. Images up to 5MB and videos up to 500MB are supported.</p>
 
             {/* Thumbnail upload */}
             <div>
@@ -224,11 +276,19 @@ export function CreateCourse() {
                   <ImageIcon className="h-10 w-10 text-gray-400" />
                   <p className="mt-2 text-sm text-gray-600">Click to upload thumbnail</p>
                   <p className="text-xs text-gray-400">PNG, JPG up to 5MB</p>
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileSelect('thumbnail', e)} />
+                  <input type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" className="hidden" onChange={(e) => handleFileSelect('thumbnail', e)} />
                 </label>
               ) : (
                 <div className="relative">
-                  <img src={form.thumbnail_url} alt="Thumbnail" className="h-48 w-full rounded-xl object-cover" />
+                  <img
+                    src={form.thumbnail_url}
+                    alt="Course Thumbnail"
+                    className="h-48 w-full rounded-xl object-cover"
+                    onError={(e) => {
+                      console.error('Thumbnail failed to load:', form.thumbnail_url);
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
                   <button onClick={() => removeFile('thumbnail')} className="absolute right-2 top-2 rounded-lg bg-red-600 p-1.5 text-white hover:bg-red-700">
                     <X className="h-4 w-4" />
                   </button>
@@ -247,7 +307,7 @@ export function CreateCourse() {
                   <Button variant="outline" size="sm" onClick={() => document.getElementById('thumb-replace')?.click()}>
                     <Upload className="h-4 w-4" /> Replace
                   </Button>
-                  <input id="thumb-replace" type="file" accept="image/*" className="hidden" onChange={(e) => handleFileSelect('thumbnail', e)} />
+                  <input id="thumb-replace" type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" className="hidden" onChange={(e) => handleFileSelect('thumbnail', e)} />
                   <Button variant="ghost" size="sm" onClick={() => removeFile('thumbnail')}><X className="h-4 w-4" /> Remove</Button>
                 </div>
               )}
@@ -261,23 +321,64 @@ export function CreateCourse() {
                   <FileVideo className="h-10 w-10 text-gray-400" />
                   <p className="mt-2 text-sm text-gray-600">Click to upload promotional video</p>
                   <p className="text-xs text-gray-400">MP4, MOV up to 500MB</p>
-                  <input type="file" accept="video/*" className="hidden" onChange={(e) => handleFileSelect('video', e)} />
+                  <input type="file" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo" className="hidden" onChange={(e) => handleFileSelect('video', e)} />
                 </label>
               ) : (
-                <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 p-4">
-                  <div className="flex items-center gap-3">
-                    <FileVideo className="h-8 w-8 text-blue-600" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Promotional video uploaded</p>
-                      <p className="text-xs text-gray-500">{form.promotional_video_url}</p>
+                <div className="space-y-4">
+                  <video
+                    controls
+                    preload="metadata"
+                    className="h-64 w-full rounded-xl bg-black object-contain"
+                    src={form.promotional_video_url}
+                    onError={() => {
+                      console.error(
+                        'Promotional video failed to load:',
+                        form.promotional_video_url
+                      );
+                    }}
+                  >
+                    Your browser does not support video playback.
+                  </video>
+
+                  <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <FileVideo className="h-8 w-8 shrink-0 text-blue-600" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900">
+                          Promotional video uploaded
+                        </p>
+                        <p className="truncate text-xs text-gray-500">
+                          {form.promotional_video_url}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => document.getElementById('vid-replace')?.click()}>
-                      <Upload className="h-4 w-4" /> Replace
-                    </Button>
-                    <input id="vid-replace" type="file" accept="video/*" className="hidden" onChange={(e) => handleFileSelect('video', e)} />
-                    <Button variant="ghost" size="sm" onClick={() => removeFile('video')}><X className="h-4 w-4" /></Button>
+
+                    <div className="ml-4 flex shrink-0 items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById('vid-replace')?.click()}
+                      >
+                        <Upload className="h-4 w-4" /> Replace
+                      </Button>
+
+                      <input
+                        id="vid-replace"
+                        type="file"
+                        accept="video/mp4,video/quicktime,video/webm,video/x-msvideo"
+                        className="hidden"
+                        onChange={(e) => handleFileSelect('video', e)}
+                      />
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile('video')}
+                        aria-label="Remove promotional video"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
