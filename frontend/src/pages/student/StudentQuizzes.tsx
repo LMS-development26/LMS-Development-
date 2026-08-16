@@ -25,46 +25,139 @@ export function StudentQuizzes() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [attempt, setAttempt] = useState<QuizAttempt | null>(null);
   const [result, setResult] = useState<{ score: number; passed: boolean; percentage: number } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [existingResults, setExistingResults] = useState<Record<string, { passed: boolean; bestScore: number; attempts: number } | null>>({});
 
-  useEffect(() => {
-    if (quizzes && user) {
-      quizzes.forEach(async (q) => {
-        const r = await quizResultApi.getByQuizAndStudent(q.id, user.id);
-        setExistingResults((prev) => ({ ...prev, [q.id]: r ? { passed: r.passed, bestScore: r.best_score_percentage, attempts: r.attempts_used } : null }));
+useEffect(() => {
+  if (quizzes && user) {
+    const loadResults = async () => {
+      const results = await quizResultApi.getByStudent(user.id);
+
+      quizzes.forEach((q) => {
+        const quizResults = results.filter((r) => r.quiz_id === q.id);
+
+        if (quizResults.length > 0) {
+          const bestResult = quizResults.reduce((best, current) =>
+            current.best_score_percentage > best.best_score_percentage
+              ? current
+              : best
+          );
+
+          setExistingResults((prev) => ({
+            ...prev,
+            [q.id]: {
+              passed: bestResult.passed,
+              bestScore: bestResult.best_score_percentage,
+              attempts: bestResult.attempts_used,
+            },
+          }));
+        } else {
+          setExistingResults((prev) => ({
+            ...prev,
+            [q.id]: null,
+          }));
+        }
       });
-    }
-  }, [quizzes, user]);
+    };
+
+    loadResults();
+  }
+}, [quizzes, user]);
 
   const handleSubmit = useCallback(async () => {
-    if (!activeQuiz || !attempt) return;
+  if (!activeQuiz || !attempt || isSubmitting) return;
+
+  setIsSubmitting(true);
+
+  try {
     let correct = 0;
+
     for (const q of questions) {
       const opts = optionsByQuestion[q.id] || [];
-      const correctOpts = opts.filter((o) => o.is_correct).map((o) => o.id);
-      const selected = answers[q.id] || [];
-      const isCorrect = correctOpts.length === selected.length && correctOpts.every((c) => selected.includes(c));
-      if (isCorrect) correct++;
-    }
-    const percentage = Math.round((correct / questions.length) * 100);
-    const passed = percentage >= activeQuiz.passing_percentage;
-    await quizAttemptApi.complete(attempt.id, percentage, passed);
-    setResult({ score: correct, passed, percentage });
-  }, [activeQuiz, attempt, questions, optionsByQuestion, answers]);
 
-  // Timer
-  useEffect(() => {
-    if (activeQuiz && timeLeft > 0) {
-      const interval = setInterval(() => {
-        setTimeLeft((t) => {
-          if (t <= 1) { clearInterval(interval); handleSubmit(); return 0; }
-          return t - 1;
-        });
-      }, 1000);
-      return () => clearInterval(interval);
+      const correctOpts = opts
+        .filter((o) => o.is_correct)
+        .map((o) => o.id);
+
+      const selected = answers[q.id] || [];
+
+      const isCorrect =
+        correctOpts.length === selected.length &&
+        correctOpts.every((c) => selected.includes(c));
+
+      if (isCorrect) {
+        correct++;
+      }
     }
-  }, [activeQuiz, timeLeft, handleSubmit]);
+
+    const percentage =
+      questions.length > 0
+        ? Math.round((correct / questions.length) * 100)
+        : 0;
+
+    const passed =
+      percentage >= activeQuiz.passing_percentage;
+
+    const answerPayload = Object.entries(answers).flatMap(
+      ([questionId, selectedOptionIds]) =>
+        selectedOptionIds.map((optionId) => ({
+          question_id: questionId,
+          selected_option_id: optionId,
+        }))
+    );
+
+    await quizAttemptApi.submit(
+      attempt.id,
+      answerPayload
+    );
+
+    setResult({
+      score: correct,
+      passed,
+      percentage,
+    });
+
+    setTimeLeft(0);
+
+  } catch (error) {
+    console.error('Failed to submit quiz:', error);
+    alert('Failed to submit quiz. Please try again.');
+  } finally {
+    setIsSubmitting(false);
+  }
+}, [
+  activeQuiz,
+  attempt,
+  questions,
+  optionsByQuestion,
+  answers,
+  isSubmitting,
+]);
+
+// Timer
+useEffect(() => {
+  if (!activeQuiz || !attempt || timeLeft <= 0 || result) {
+    return;
+  }
+
+  const interval = setInterval(() => {
+    setTimeLeft((previousTime) => {
+      if (previousTime <= 1) {
+        clearInterval(interval);
+
+        // Automatically submit when time reaches 0
+        handleSubmit();
+
+        return 0;
+      }
+
+      return previousTime - 1;
+    });
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [activeQuiz, attempt, result, handleSubmit]);
 
   if (loading) return <LoadingState />;
 
@@ -82,9 +175,11 @@ export function StudentQuizzes() {
     setTimeLeft((quiz.time_limit_minutes || 0) * 60);
     setResult(null);
     setShowReview(false);
-    const att = await quizAttemptApi.start(quiz.id, user!.id);
-    setAttempt(att);
-    setActiveQuiz(quiz);
+    setIsSubmitting(false);
+const att = await quizAttemptApi.start(quiz.id);
+
+setAttempt(att);
+setActiveQuiz(quiz);
   };
 
   const selectAnswer = (questionId: string, optionId: string, isMultiple: boolean) => {
@@ -96,6 +191,8 @@ export function StudentQuizzes() {
       return { ...prev, [questionId]: [optionId] };
     });
   };
+
+  
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -178,7 +275,13 @@ export function StudentQuizzes() {
               {currentQuestionIdx < questions.length - 1 ? (
                 <Button onClick={() => setCurrentQuestionIdx((i) => i + 1)}>Next <ChevronRight className="h-4 w-4" /></Button>
               ) : (
-                <Button variant="success" onClick={handleSubmit}>Submit Quiz</Button>
+                <Button
+  variant="success"
+  onClick={handleSubmit}
+  disabled={isSubmitting}
+>
+  {isSubmitting ? 'Submitting...' : 'Submit Quiz'}
+</Button>
               )}
             </div>
           </CardBody>

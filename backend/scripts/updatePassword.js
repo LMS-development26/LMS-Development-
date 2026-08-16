@@ -12,27 +12,33 @@ const pool = new Pool({
 
 async function updatePassword() {
   const client = await pool.connect();
-  
+
   try {
-    console.log('Updating password for student1@example.com...');
-    
-    // Hash password using the same method as UserModel
+    console.log('Updating password for payaldhakre1312@gmail.com...');
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash('password123', salt);
-    
+
     const result = await client.query(
-      'UPDATE users SET password_hash = $1 WHERE email = $2 RETURNING id, email',
-      [hashedPassword, 'student1@example.com']
+      `UPDATE users
+       SET password_hash = $1,
+           failed_login_attempts = 0,
+           locked_until = NULL
+       WHERE email = $2
+       RETURNING id, email, role, status`,
+      [hashedPassword, 'payaldhakre1312@gmail.com']
     );
-    
+
     if (result.rows.length === 0) {
       console.log('User not found!');
     } else {
       console.log('Password updated successfully!');
-      console.log('  Email:', result.rows[0].email);
-      console.log('  Password: password123');
+      console.log('Email:', result.rows[0].email);
+      console.log('Role:', result.rows[0].role);
+      console.log('Status:', result.rows[0].status);
+      console.log('Password: password123');
     }
-    
+
   } catch (error) {
     console.error('Error updating password:', error);
   } finally {

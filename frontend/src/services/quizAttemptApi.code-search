@@ -1,0 +1,68 @@
+# Query: quizAttemptApi
+# ContextLines: 1
+
+4 results - 2 files
+
+LMS-Development-\frontend\src\pages\student\StudentQuizzes.tsx:
+   7  import { useAuth } from '@/context/AuthContext';
+   8: import { courseApi, quizApi, questionApi, optionApi, quizAttemptApi, quizResultApi } from '@/services/api';
+   9  import { useAsync } from '@/hooks/useAsync';
+
+  68      setShowReview(false);
+  69:     const att = await quizAttemptApi.start(quiz.id, user!.id);
+  70      setAttempt(att);
+
+  95      const passed = percentage >= activeQuiz.passing_percentage;
+  96:     await quizAttemptApi.complete(attempt.id, percentage, passed);
+  97      setResult({ score: correct, passed, percentage });
+
+LMS-Development-\frontend\src\services\api.ts:
+  573  // ---- Quiz Attempts & Results ----
+  574: // ---- Quiz Attempts & Results ----
+export const quizAttemptApi = {
+  async listByQuiz(quizId: string): Promise<QuizAttempt[]> {
+    const response = await apiClient.get(
+      `/quizzes/attempts/quiz/${quizId}`
+    );
+
+    return response.data.data || response.data;
+  },
+
+  async listByStudent(studentId: string): Promise<QuizAttempt[]> {
+    const response = await apiClient.get(
+      `/quizzes/attempts/results/${studentId}`
+    );
+
+    return response.data.data || response.data;
+  },
+
+  async start(quizId: string, studentId: string): Promise<QuizAttempt> {
+    const response = await apiClient.post(
+      `/quizzes/attempts/start`,
+      {
+        quiz_id: quizId,
+      }
+    );
+
+    return response.data.data || response.data;
+  },
+
+  async complete(
+    id: string,
+    answers: Array<{
+      question_id: string;
+      selected_option_id?: string;
+      answer_text?: string;
+    }>
+  ): Promise<QuizAttempt> {
+    const response = await apiClient.post(
+      `/quizzes/attempts/submit`,
+      {
+        attempt_id: id,
+        answers,
+      }
+    );
+
+    return response.data.data || response.data;
+  },
+};
