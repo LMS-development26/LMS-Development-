@@ -89,11 +89,8 @@ function AppRoutes() {
         <Route path="students" element={<EnrolledStudents />} />
       </Route>
 
-      {/* Instructor Login */}
-      <Route path="/instructor/login" element={<InstructorLogin />} />
-
       
-
+    
       {/* Student Login */}
       <Route path="/student/login" element={<StudentLogin />} />
       <Route path="/student/signup" element={<StudentSignup />} />

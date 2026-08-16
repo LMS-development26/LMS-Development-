@@ -316,6 +316,28 @@ const deleteQuestion = async (req, res, next) => {
   }
 };
 
+// Get question options
+const getOptionsByQuestion = async (req, res, next) => {
+  try {
+    const { questionId } = req.params;
+
+    const result = await query(
+      `SELECT *
+       FROM question_options
+       WHERE question_id = $1
+       ORDER BY id`,
+      [questionId]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Create question option
 const createOption = async (req, res, next) => {
   try {
@@ -443,12 +465,25 @@ const startAttempt = async (req, res, next) => {
     // );
     
     const result = await query(
+<<<<<<< HEAD
         `INSERT INTO quiz_attempts
         (quiz_id, student_id, attempt_number, started_at)
         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
         RETURNING *`,
         [quiz_id, student_id, attemptNumberResult.rows[0].next_number]
     );
+=======
+  `INSERT INTO quiz_attempts
+   (quiz_id, student_id, attempt_number, started_at)
+   VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+   RETURNING *`,
+  [
+    quiz_id,
+    student_id,
+    attemptNumberResult.rows[0].next_number
+  ]
+);
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
 
 
     res.status(201).json({
@@ -584,14 +619,19 @@ const startAttempt = async (req, res, next) => {
 // Submit quiz attempt new
 const submitAttempt = async (req, res, next) => {
   try {
+<<<<<<< HEAD
     const { attempt_id, answers } = req.body;
     const student_id = req.user.id;
+=======
+    const { attempt_id, answers = [] } = req.body;
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
 
     const client = await getClient();
 
     try {
       await client.query('BEGIN');
 
+<<<<<<< HEAD
       // 1. Get the attempt
       const attemptResult = await client.query(
         `SELECT qa.*, q.passing_percentage
@@ -600,6 +640,17 @@ const submitAttempt = async (req, res, next) => {
          WHERE qa.id = $1
            AND qa.student_id = $2`,
         [attempt_id, student_id]
+=======
+      // 1. Get attempt + quiz information
+      const attemptResult = await client.query(
+        `SELECT 
+           qa.*,
+           q.passing_percentage
+         FROM quiz_attempts qa
+         JOIN quizzes q ON qa.quiz_id = q.id
+         WHERE qa.id = $1`,
+        [attempt_id]
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
       );
 
       if (attemptResult.rows.length === 0) {
@@ -613,6 +664,7 @@ const submitAttempt = async (req, res, next) => {
 
       const attempt = attemptResult.rows[0];
 
+<<<<<<< HEAD
       // Prevent submitting the same attempt twice
       if (attempt.submitted_at !== null) {
         await client.query('ROLLBACK');
@@ -633,11 +685,50 @@ const submitAttempt = async (req, res, next) => {
            WHERE id = $1
              AND question_id = $2`,
           [answer.selected_option_id, answer.question_id]
+=======
+      // 2. Make sure this attempt belongs to logged-in student
+      if (attempt.student_id !== req.user.id) {
+        await client.query('ROLLBACK');
+
+        return res.status(403).json({
+          success: false,
+          error: 'You cannot submit this attempt'
+        });
+      }
+
+      // 3. Prevent duplicate submission
+      if (attempt.submitted_at) {
+        await client.query('ROLLBACK');
+
+        return res.status(400).json({
+          success: false,
+          error: 'Quiz attempt has already been submitted'
+        });
+      }
+
+      // 4. Count correct answers
+      let correctCount = 0;
+
+      for (const answer of answers) {
+
+        const optionResult = await client.query(
+          `SELECT is_correct
+           FROM question_options
+           WHERE id = $1`,
+          [answer.selected_option_id]
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
         );
 
         const isCorrect =
           optionResult.rows.length > 0 &&
           optionResult.rows[0].is_correct === true;
+<<<<<<< HEAD
+=======
+
+        if (isCorrect) {
+          correctCount++;
+        }
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
 
         if (isCorrect) {
           correctCount++;
@@ -646,7 +737,16 @@ const submitAttempt = async (req, res, next) => {
         // Save student's answer
         await client.query(
           `INSERT INTO quiz_answers
+<<<<<<< HEAD
            (quiz_attempt_id, question_id, selected_option_id, is_correct)
+=======
+           (
+             attempt_id,
+             question_id,
+             selected_option_id,
+             is_correct
+           )
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
            VALUES ($1, $2, $3, $4)`,
           [
             attempt_id,
@@ -657,6 +757,7 @@ const submitAttempt = async (req, res, next) => {
         );
       }
 
+<<<<<<< HEAD
       // 3. Calculate score
       const totalQuestions = answers.length;
 
@@ -669,11 +770,36 @@ const submitAttempt = async (req, res, next) => {
         score >= Number(attempt.passing_percentage);
 
       // 4. Update quiz_attempts using YOUR actual columns
+=======
+      // 5. Count total questions
+      const questionCountResult = await client.query(
+        `SELECT COUNT(*) AS count
+         FROM questions
+         WHERE quiz_id = $1`,
+        [attempt.quiz_id]
+      );
+
+      const totalQuestions =
+        parseInt(questionCountResult.rows[0].count, 10) || 0;
+
+      // 6. Calculate score
+      const score =
+        totalQuestions > 0
+          ? Math.round((correctCount / totalQuestions) * 100)
+          : 0;
+
+      // 7. Check pass/fail
+      const passed =
+        score >= Number(attempt.passing_percentage);
+
+      // 8. Update quiz attempt
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
       await client.query(
         `UPDATE quiz_attempts
          SET submitted_at = CURRENT_TIMESTAMP,
              score = $1
          WHERE id = $2`,
+<<<<<<< HEAD
         [score, attempt_id]
       );
 
@@ -690,12 +816,39 @@ const submitAttempt = async (req, res, next) => {
         [
           attempt_id,
           student_id,
+=======
+        [
+          score,
+          attempt_id
+        ]
+      );
+
+      // 9. Insert quiz result
+      await client.query(
+        `INSERT INTO quiz_results
+         (
+           attempt_id,
+           student_id,
+           quiz_id,
+           score,
+           passed,
+           completed_at
+         )
+         VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
+        [
+          attempt_id,
+          attempt.student_id,
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
           attempt.quiz_id,
           score,
           passed
         ]
       );
 
+<<<<<<< HEAD
+=======
+      // 10. Commit transaction
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
       await client.query('COMMIT');
 
       res.json({
@@ -703,16 +856,25 @@ const submitAttempt = async (req, res, next) => {
         data: {
           attempt_id,
           score,
+<<<<<<< HEAD
           passed
+=======
+          passed,
+          correct_answers: correctCount,
+          total_questions: totalQuestions
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
         }
       });
 
     } catch (error) {
+
       await client.query('ROLLBACK');
       throw error;
 
     } finally {
+
       client.release();
+
     }
 
   } catch (error) {
@@ -773,10 +935,15 @@ const getQuizAttempts = async (req, res, next) => {
 };
 
 // Get analytics for a particular quiz
+<<<<<<< HEAD
+=======
+// Get analytics for a particular quiz
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
 const getQuizAnalytics = async (req, res, next) => {
   try {
     const { quizId } = req.params;
 
+<<<<<<< HEAD
     const result = await query(
       `
       WITH quiz_info AS (
@@ -895,10 +1062,146 @@ const getQuizAnalytics = async (req, res, next) => {
 
   } catch (error) {
     console.error('Error getting quiz analytics:', error);
+=======
+    // Check quiz exists
+    const quizResult = await query(
+      `SELECT id, title, course_id
+       FROM quizzes
+       WHERE id = $1`,
+      [quizId]
+    );
+
+    if (quizResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Quiz not found'
+      });
+    }
+
+    const quiz = quizResult.rows[0];
+
+    // Get all results
+    const resultsResult = await query(
+      `SELECT
+         qr.student_id,
+         qr.score,
+         qr.passed,
+         qr.completed_at,
+         qa.started_at,
+         qa.submitted_at
+       FROM quiz_results qr
+       JOIN quiz_attempts qa
+         ON qr.attempt_id = qa.id
+       WHERE qr.quiz_id = $1
+       ORDER BY qr.completed_at DESC`,
+      [quizId]
+    );
+
+    const results = resultsResult.rows;
+
+    // Number of unique students
+    const students = new Set(
+      results.map(result => result.student_id)
+    );
+
+    const attempted = students.size;
+
+    // Passed / failed
+    const passed = results.filter(
+      result => result.passed === true
+    ).length;
+
+    const failed = results.filter(
+      result => result.passed === false
+    ).length;
+
+    // Scores
+    const scores = results
+      .map(result => Number(result.score))
+      .filter(score => !Number.isNaN(score));
+
+    const averageScore =
+      scores.length > 0
+        ? scores.reduce((sum, score) => sum + score, 0) / scores.length
+        : 0;
+
+    const highestScore =
+      scores.length > 0
+        ? Math.max(...scores)
+        : 0;
+
+    const lowestScore =
+      scores.length > 0
+        ? Math.min(...scores)
+        : 0;
+
+    // Completion times
+    const completionTimes = results
+      .filter(
+        result =>
+          result.started_at &&
+          result.submitted_at
+      )
+      .map(result => {
+        const start =
+          new Date(result.started_at).getTime();
+
+        const end =
+          new Date(result.submitted_at).getTime();
+
+        return (end - start) / (1000 * 60);
+      })
+      .filter(time => time >= 0);
+
+    const averageTime =
+      completionTimes.length > 0
+        ? completionTimes.reduce(
+            (sum, time) => sum + time,
+            0
+          ) / completionTimes.length
+        : 0;
+
+    // Pass rate
+    const passRate =
+      results.length > 0
+        ? (passed / results.length) * 100
+        : 0;
+
+    res.json({
+      success: true,
+      data: {
+        quizId: quiz.id,
+        quizTitle: quiz.title,
+
+        attempted,
+
+        totalAttempts: results.length,
+
+        passed,
+        failed,
+
+        averageScore: Math.round(averageScore),
+
+        highestScore: Math.round(highestScore),
+
+        lowestScore: Math.round(lowestScore),
+
+        averageTime: Math.round(averageTime),
+
+        passRate: Math.round(passRate)
+      }
+    });
+
+  } catch (error) {
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
     next(error);
   }
 };
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
 module.exports = {
   getQuizzesByCourse,
   getQuiz,
@@ -908,6 +1211,7 @@ module.exports = {
   createQuestion,
   updateQuestion,
   deleteQuestion,
+  getOptionsByQuestion,
   createOption,
   updateOption,
   deleteOption,

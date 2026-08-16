@@ -11,8 +11,7 @@ import type {
 } from '@/types';
 
 // API Base URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 // Helper function for API calls
 const apiCall = async (endpoint: string, options: RequestInit = {}) => {
   if (!API_BASE_URL) {
@@ -192,6 +191,8 @@ export const authApi = {
       return null;
     }
   },
+
+
 };
 
 // ---- Categories ----
@@ -457,7 +458,101 @@ export const enrollmentRequestApi = {
     });
   },
 };
+// ---- Quizzes ----
+export const quizApi = {
+  async listByCourse(courseId: string): Promise<Quiz[]> {
+    return apiCall(`/quizzes/course/${courseId}`);
+  },
 
+  async getById(id: string): Promise<Quiz> {
+    return apiCall(`/quizzes/${id}`);
+  },
+
+  async create(data: Partial<Quiz>): Promise<Quiz> {
+    return apiCall('/quizzes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: Partial<Quiz>): Promise<Quiz> {
+    return apiCall(`/quizzes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<void> {
+    await apiCall(`/quizzes/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Get analytics for a quiz
+    async getAnalytics(quizId: string): Promise<any> {
+    return apiCall(`/quizzes/${quizId}/analytics`);
+  },
+};
+
+// ---- Questions ----
+export const questionApi = {
+  async listByQuiz(quizId: string): Promise<Question[]> {
+    const quiz = await apiCall(`/quizzes/${quizId}`);
+    return Array.isArray(quiz.questions) ? quiz.questions : [];
+  },
+
+  async create(data: Partial<Question>): Promise<Question> {
+    return apiCall('/quizzes/questions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: Partial<Question>): Promise<Question> {
+    return apiCall(`/quizzes/questions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<void> {
+    await apiCall(`/quizzes/questions/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// ---- Question Options ----
+export const optionApi = {
+  async listByQuestion(questionId: string): Promise<QuestionOption[]> {
+    return apiCall(`/quizzes/options/question/${questionId}`, {
+    method: 'GET',
+    });
+  },
+
+  async create(data: Partial<QuestionOption>): Promise<QuestionOption> {
+    return apiCall('/quizzes/options', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(
+    id: string,
+    data: Partial<QuestionOption>
+  ): Promise<QuestionOption> {
+    return apiCall(`/quizzes/options/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<void> {
+    await apiCall(`/quizzes/options/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
 // ---- Assignments ----
 export const assignmentApi = {
   async listByCourse(courseId: string): Promise<Assignment[]> {
@@ -518,6 +613,7 @@ export const submissionApi = {
   },
 };
 
+<<<<<<< HEAD
 // ---- Quizzes ----
 export const quizApi = {
   async listByCourse(courseId: string): Promise<Quiz[]> {
@@ -600,6 +696,8 @@ export const optionApi = {
   },
 };
 
+=======
+>>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
 // ---- Meetings ----
 export const meetingApi = {
   async listByCourse(courseId: string): Promise<Meeting[]> {
@@ -688,6 +786,14 @@ export const lessonProgressApi = {
   async getByLesson(lessonId: string): Promise<LessonProgress | null> {
     return apiCall(`/progress/lesson/${lessonId}`);
   },
+  async listByCourseAndStudent(
+  courseId: string,
+  studentId: string
+): Promise<LessonProgress[]> {
+  return apiCall(
+    `/progress/course/${courseId}/student/${studentId}/lessons`
+  );
+},
   async reset(lessonId: string): Promise<void> {
     return apiCall(`/progress/lesson/${lessonId}/reset`, {
       method: 'POST',
@@ -772,12 +878,21 @@ export const quizAttemptApi = {
       body: JSON.stringify({ quiz_id: quizId }),
     });
   },
-  async submit(attemptId: string, answers: Record<string, string>): Promise<QuizResult> {
-    return apiCall('/quizzes/attempts/submit', {
-      method: 'POST',
-      body: JSON.stringify({ attempt_id: attemptId, answers }),
-    });
-  },
+  async submit(
+  attemptId: string,
+  answers: {
+    question_id: string;
+    selected_option_id: string;
+  }[]
+): Promise<any> {
+  return apiCall('/quizzes/attempts/submit', {
+    method: 'POST',
+    body: JSON.stringify({
+      attempt_id: attemptId,
+      answers,
+    }),
+  });
+},
   async getByStudent(studentId: string): Promise<QuizResult[]> {
     return apiCall(`/quizzes/attempts/results/${studentId}`);
   },
@@ -955,3 +1070,4 @@ export const adminApi = {
     });
   },
 };
+

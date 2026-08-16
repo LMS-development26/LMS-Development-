@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Play, CheckCircle2, Circle, FileVideo, FileText, Link as LinkIcon,
-  Code, Download, ChevronDown, ChevronRight, ChevronLeft, Clock, Award, Menu,
+Code, Download, ChevronDown, ChevronRight, ChevronLeft, Clock, Award, Menu,
+FileQuestion,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -151,6 +152,14 @@ export function LearningPage() {
               </div>
             );
           })}
+            <Link
+    to={`/student/courses/${courseId}/quizzes`}
+    onClick={() => setSidebarOpen(false)}
+    className="mt-2 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+  >
+    <FileQuestion className="h-4 w-4" />
+    <span>Quizzes</span>
+  </Link>
         </div>
       </aside>
 

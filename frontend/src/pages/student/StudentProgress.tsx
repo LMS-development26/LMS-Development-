@@ -56,25 +56,30 @@ export function StudentProgress() {
 
       {/* Lesson breakdown */}
       <Card>
-        <CardHeader title="Lesson Progress" />
-        <CardBody>
-          <div className="space-y-3">
-            {modules?.map((mod) => {
-              const modLessons = lessonProgress?.filter(() => {
-                // We need to check if lesson belongs to this module - but we only have lesson_id
-                // For simplicity, we'll show all lesson progress
-                return true;
-              });
-              return (
-                <div key={mod.id} className="rounded-lg border border-gray-100 p-3">
-                  <p className="text-sm font-semibold text-gray-900">{mod.name}</p>
-                  <p className="mt-1 text-xs text-gray-500">{modLessons?.filter((lp) => lp.completed).length || 0} of lessons completed</p>
-                </div>
-              );
-            })}
+  <CardHeader title="Lesson Progress" />
+  <CardBody>
+    <div className="space-y-3">
+      {modules?.map((mod) => {
+        const completedLessons =
+          Array.isArray(lessonProgress)
+            ? lessonProgress.filter((lp: { completed: boolean }) => lp.completed).length
+            : 0;
+
+        return (
+          <div key={mod.id} className="rounded-lg border border-gray-100 p-3">
+            <p className="text-sm font-semibold text-gray-900">
+              {mod.name}
+            </p>
+
+            <p className="mt-1 text-xs text-gray-500">
+              {completedLessons} lessons completed
+            </p>
           </div>
-        </CardBody>
-      </Card>
-    </div>
+        );
+      })}
+          </div>
+    </CardBody>
+  </Card>
+</div>
   );
 }
