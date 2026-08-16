@@ -435,12 +435,21 @@ const startAttempt = async (req, res, next) => {
       [quiz_id, student_id]
     );
 
+    // const result = await query(
+    //   `INSERT INTO quiz_attempts (quiz_id, student_id, attempt_number, started_at, status)
+    //    VALUES ($1, $2, $3, CURRENT_TIMESTAMP, 'IN_PROGRESS')
+    //    RETURNING *`,
+    //   [quiz_id, student_id, attemptNumberResult.rows[0].next_number]
+    // );
+    
     const result = await query(
-      `INSERT INTO quiz_attempts (quiz_id, student_id, attempt_number, started_at, status)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, 'IN_PROGRESS')
-       RETURNING *`,
-      [quiz_id, student_id, attemptNumberResult.rows[0].next_number]
+        `INSERT INTO quiz_attempts
+        (quiz_id, student_id, attempt_number, started_at)
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+        RETURNING *`,
+        [quiz_id, student_id, attemptNumberResult.rows[0].next_number]
     );
+
 
     res.status(201).json({
       success: true,
@@ -452,23 +461,150 @@ const startAttempt = async (req, res, next) => {
 };
 
 // Submit quiz attempt
+// const submitAttempt = async (req, res, next) => {
+//   try {
+//     const { attempt_id, answers } = req.body; // answers: [{ question_id, selected_option_id }]
+
+//     const client = await getClient();
+    
+//     try {
+//       await client.query('BEGIN');
+
+//       // Get attempt
+//       const attemptResult = await client.query(
+//         'SELECT * FROM quiz_attempts WHERE id = $1',
+//         [attempt_id]
+//       );
+
+//       if (attemptResult.rows.length === 0) {
+//         await client.query('ROLLBACK');
+//         return res.status(404).json({
+//           success: false,
+//           error: 'Quiz attempt not found'
+//         });
+//       }
+
+//       const attempt = attemptResult.rows[0];
+
+//       // Update attempt status
+//       await client.query(
+//         `UPDATE quiz_attempts
+//          SET completed_at = CURRENT_TIMESTAMP, status = 'COMPLETED'
+//          WHERE id = $1`,
+//         [attempt_id]
+//       );
+
+//       // Process answers
+//       let correctCount = 0;
+//       for (const answer of answers) {
+//         // Get correct option
+//         const optionResult = await client.query(
+//           'SELECT is_correct FROM question_options WHERE id = $1',
+//           [answer.selected_option_id]
+//         );
+
+//         const isCorrect = optionResult.rows.length > 0 && optionResult.rows[0].is_correct;
+//         if (isCorrect) correctCount++;
+
+//         // Save answer
+//         await client.query(
+//           `INSERT INTO quiz_answers (quiz_attempt_id, question_id, selected_option_id, is_correct)
+//            VALUES ($1, $2, $3, $4)`,
+//           [attempt_id, answer.question_id, answer.selected_option_id, isCorrect]
+//         );
+//       }
+
+//       // Calculate score
+//       const totalQuestions = answers.length;
+//       const scorePercentage = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
+//       const passed = scorePercentage >= attempt.passing_percentage;
+
+//       // Update attempt with score
+//       await client.query(
+//         `UPDATE quiz_attempts
+//          SET score_percentage = $1, passed = $2
+//          WHERE id = $3`,
+//         [scorePercentage, passed, attempt_id]
+//       );
+
+//       // Update or create quiz result
+//       const existingResult = await client.query(
+//         'SELECT * FROM quiz_results WHERE quiz_id = $1 AND student_id = $2',
+//         [attempt.quiz_id, attempt.student_id]
+//       );
+
+//       if (existingResult.rows.length > 0) {
+//         // Update if this is better
+//         const currentBest = existingResult.rows[0];
+//         if (scorePercentage > currentBest.best_score_percentage) {
+//           await client.query(
+//             `UPDATE quiz_results
+//              SET best_score_percentage = $1, best_attempt_id = $2, passed = $3, attempts_used = attempts_used + 1, last_attempted_at = CURRENT_TIMESTAMP
+//              WHERE id = $4`,
+//             [scorePercentage, attempt_id, passed, currentResult.rows[0].id]
+//           );
+//         } else {
+//           await client.query(
+//             `UPDATE quiz_results
+//              SET attempts_used = attempts_used + 1, last_attempted_at = CURRENT_TIMESTAMP
+//              WHERE id = $1`,
+//             [currentResult.rows[0].id]
+//           );
+//         }
+//       } else {
+//         // Create new result
+//         await client.query(
+//           `INSERT INTO quiz_results (quiz_id, student_id, best_score_percentage, best_attempt_id, passed, attempts_used, last_attempted_at)
+//            VALUES ($1, $2, $3, $4, $5, 1, CURRENT_TIMESTAMP)`,
+//           [attempt.quiz_id, attempt.student_id, scorePercentage, attempt_id, passed]
+//         );
+//       }
+
+//       await client.query('COMMIT');
+
+//       res.json({
+//         success: true,
+//         data: {
+//           attempt_id,
+//           score_percentage: scorePercentage,
+//           passed
+//         }
+//       });
+//     } catch (error) {
+//       await client.query('ROLLBACK');
+//       throw error;
+//     } finally {
+//       client.release();
+//     }
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+// Submit quiz attempt new
 const submitAttempt = async (req, res, next) => {
   try {
-    const { attempt_id, answers } = req.body; // answers: [{ question_id, selected_option_id }]
+    const { attempt_id, answers } = req.body;
+    const student_id = req.user.id;
 
     const client = await getClient();
-    
+
     try {
       await client.query('BEGIN');
 
-      // Get attempt
+      // 1. Get the attempt
       const attemptResult = await client.query(
-        'SELECT * FROM quiz_attempts WHERE id = $1',
-        [attempt_id]
+        `SELECT qa.*, q.passing_percentage
+         FROM quiz_attempts qa
+         JOIN quizzes q ON q.id = qa.quiz_id
+         WHERE qa.id = $1
+           AND qa.student_id = $2`,
+        [attempt_id, student_id]
       );
 
       if (attemptResult.rows.length === 0) {
         await client.query('ROLLBACK');
+
         return res.status(404).json({
           success: false,
           error: 'Quiz attempt not found'
@@ -477,79 +613,88 @@ const submitAttempt = async (req, res, next) => {
 
       const attempt = attemptResult.rows[0];
 
-      // Update attempt status
-      await client.query(
-        `UPDATE quiz_attempts
-         SET completed_at = CURRENT_TIMESTAMP, status = 'COMPLETED'
-         WHERE id = $1`,
-        [attempt_id]
-      );
+      // Prevent submitting the same attempt twice
+      if (attempt.submitted_at !== null) {
+        await client.query('ROLLBACK');
 
-      // Process answers
+        return res.status(400).json({
+          success: false,
+          error: 'This quiz attempt has already been submitted'
+        });
+      }
+
+      // 2. Process answers
       let correctCount = 0;
+
       for (const answer of answers) {
-        // Get correct option
         const optionResult = await client.query(
-          'SELECT is_correct FROM question_options WHERE id = $1',
-          [answer.selected_option_id]
+          `SELECT is_correct
+           FROM question_options
+           WHERE id = $1
+             AND question_id = $2`,
+          [answer.selected_option_id, answer.question_id]
         );
 
-        const isCorrect = optionResult.rows.length > 0 && optionResult.rows[0].is_correct;
-        if (isCorrect) correctCount++;
+        const isCorrect =
+          optionResult.rows.length > 0 &&
+          optionResult.rows[0].is_correct === true;
 
-        // Save answer
+        if (isCorrect) {
+          correctCount++;
+        }
+
+        // Save student's answer
         await client.query(
-          `INSERT INTO quiz_answers (quiz_attempt_id, question_id, selected_option_id, is_correct)
+          `INSERT INTO quiz_answers
+           (quiz_attempt_id, question_id, selected_option_id, is_correct)
            VALUES ($1, $2, $3, $4)`,
-          [attempt_id, answer.question_id, answer.selected_option_id, isCorrect]
+          [
+            attempt_id,
+            answer.question_id,
+            answer.selected_option_id,
+            isCorrect
+          ]
         );
       }
 
-      // Calculate score
+      // 3. Calculate score
       const totalQuestions = answers.length;
-      const scorePercentage = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
-      const passed = scorePercentage >= attempt.passing_percentage;
 
-      // Update attempt with score
+      const score =
+        totalQuestions > 0
+          ? (correctCount / totalQuestions) * 100
+          : 0;
+
+      const passed =
+        score >= Number(attempt.passing_percentage);
+
+      // 4. Update quiz_attempts using YOUR actual columns
       await client.query(
         `UPDATE quiz_attempts
-         SET score_percentage = $1, passed = $2
-         WHERE id = $3`,
-        [scorePercentage, passed, attempt_id]
+         SET submitted_at = CURRENT_TIMESTAMP,
+             score = $1
+         WHERE id = $2`,
+        [score, attempt_id]
       );
 
-      // Update or create quiz result
-      const existingResult = await client.query(
-        'SELECT * FROM quiz_results WHERE quiz_id = $1 AND student_id = $2',
-        [attempt.quiz_id, attempt.student_id]
+      // 5. Insert quiz result using YOUR actual columns
+      await client.query(
+        `INSERT INTO quiz_results
+         (attempt_id, student_id, quiz_id, score, passed, completed_at)
+         VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+         ON CONFLICT (attempt_id)
+         DO UPDATE SET
+           score = EXCLUDED.score,
+           passed = EXCLUDED.passed,
+           completed_at = CURRENT_TIMESTAMP`,
+        [
+          attempt_id,
+          student_id,
+          attempt.quiz_id,
+          score,
+          passed
+        ]
       );
-
-      if (existingResult.rows.length > 0) {
-        // Update if this is better
-        const currentBest = existingResult.rows[0];
-        if (scorePercentage > currentBest.best_score_percentage) {
-          await client.query(
-            `UPDATE quiz_results
-             SET best_score_percentage = $1, best_attempt_id = $2, passed = $3, attempts_used = attempts_used + 1, last_attempted_at = CURRENT_TIMESTAMP
-             WHERE id = $4`,
-            [scorePercentage, attempt_id, passed, currentResult.rows[0].id]
-          );
-        } else {
-          await client.query(
-            `UPDATE quiz_results
-             SET attempts_used = attempts_used + 1, last_attempted_at = CURRENT_TIMESTAMP
-             WHERE id = $1`,
-            [currentResult.rows[0].id]
-          );
-        }
-      } else {
-        // Create new result
-        await client.query(
-          `INSERT INTO quiz_results (quiz_id, student_id, best_score_percentage, best_attempt_id, passed, attempts_used, last_attempted_at)
-           VALUES ($1, $2, $3, $4, $5, 1, CURRENT_TIMESTAMP)`,
-          [attempt.quiz_id, attempt.student_id, scorePercentage, attempt_id, passed]
-        );
-      }
 
       await client.query('COMMIT');
 
@@ -557,20 +702,24 @@ const submitAttempt = async (req, res, next) => {
         success: true,
         data: {
           attempt_id,
-          score_percentage: scorePercentage,
+          score,
           passed
         }
       });
+
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
+
     } finally {
       client.release();
     }
+
   } catch (error) {
+    console.error('Error submitting quiz attempt:', error);
     next(error);
   }
-};
+}; 
 
 // Get quiz results for student
 const getQuizResults = async (req, res, next) => {
@@ -623,6 +772,133 @@ const getQuizAttempts = async (req, res, next) => {
   }
 };
 
+// Get analytics for a particular quiz
+const getQuizAnalytics = async (req, res, next) => {
+  try {
+    const { quizId } = req.params;
+
+    const result = await query(
+      `
+      WITH quiz_info AS (
+        SELECT
+          id AS quiz_id,
+          course_id
+        FROM quizzes
+        WHERE id = $1
+      ),
+
+      enrolled_students AS (
+        SELECT DISTINCT e.student_id
+        FROM enrollments e
+        JOIN quiz_info q
+          ON q.course_id = e.course_id
+      ),
+
+      latest_attempts AS (
+        SELECT *
+        FROM (
+          SELECT
+            qa.id AS attempt_id,
+            qa.quiz_id,
+            qa.student_id,
+            qa.attempt_number,
+            qa.started_at,
+            qa.submitted_at,
+            ROW_NUMBER() OVER (
+              PARTITION BY qa.student_id
+              ORDER BY qa.attempt_number DESC
+            ) AS rn
+          FROM quiz_attempts qa
+          JOIN quiz_info q
+            ON q.quiz_id = qa.quiz_id
+          WHERE qa.submitted_at IS NOT NULL
+        ) a
+        WHERE rn = 1
+      ),
+
+      student_results AS (
+        SELECT
+          la.student_id,
+          qr.score,
+          qr.passed,
+          la.started_at,
+          la.submitted_at
+        FROM latest_attempts la
+        JOIN quiz_results qr
+          ON qr.attempt_id = la.attempt_id
+      )
+
+      SELECT
+        (SELECT COUNT(*)
+         FROM enrolled_students) AS total_students,
+
+        COUNT(sr.student_id) AS attempted,
+
+        COUNT(*) FILTER (
+          WHERE sr.passed = TRUE
+        ) AS passed,
+
+        COUNT(*) FILTER (
+          WHERE sr.passed = FALSE
+        ) AS failed,
+
+        COALESCE(
+          ROUND(AVG(sr.score), 0),
+          0
+        ) AS average_score,
+
+        COALESCE(
+          MAX(sr.score),
+          0
+        ) AS highest_score,
+
+        COALESCE(
+          MIN(sr.score),
+          0
+        ) AS lowest_score,
+
+        COALESCE(
+          ROUND(
+            AVG(
+              EXTRACT(
+                EPOCH FROM (
+                  sr.submitted_at - sr.started_at
+                )
+              ) / 60
+            ),
+            0
+          ),
+          0
+        ) AS average_time,
+
+        COALESCE(
+          ROUND(
+            100.0 *
+            COUNT(*) FILTER (
+              WHERE sr.passed = TRUE
+            )
+            / NULLIF(COUNT(sr.student_id), 0),
+            0
+          ),
+          0
+        ) AS pass_rate
+
+      FROM student_results sr;
+      `,
+      [quizId]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error getting quiz analytics:', error);
+    next(error);
+  }
+};
+
 module.exports = {
   getQuizzesByCourse,
   getQuiz,
@@ -638,5 +914,6 @@ module.exports = {
   startAttempt,
   submitAttempt,
   getQuizResults,
-  getQuizAttempts
+  getQuizAttempts,
+  getQuizAnalytics
 };

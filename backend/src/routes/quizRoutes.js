@@ -35,6 +35,12 @@ const submitAttemptValidation = [
 
 // Quiz routes
 router.get('/course/:courseId', protect, quizController.getQuizzesByCourse);
+router.get(
+  '/:quizId/analytics',
+  protect,
+  authorize('INSTRUCTOR', 'ADMIN'),
+  quizController.getQuizAnalytics
+);
 router.get('/:id', protect, quizController.getQuiz);
 router.post('/', protect, authorize('INSTRUCTOR', 'ADMIN'), createQuizValidation, handleValidationErrors, quizController.createQuiz);
 router.put('/:id', protect, authorize('INSTRUCTOR', 'ADMIN'), quizController.updateQuiz);

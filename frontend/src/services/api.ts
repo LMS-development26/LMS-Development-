@@ -526,6 +526,9 @@ export const quizApi = {
   async getById(id: string): Promise<Quiz> {
     return apiCall(`/quizzes/${id}`);
   },
+  async getAnalytics(quizId: string): Promise<any> {
+    return apiCall(`/quizzes/${quizId}/analytics`);
+  },
   async create(data: Partial<Quiz>): Promise<Quiz> {
     return apiCall('/quizzes', {
       method: 'POST',
