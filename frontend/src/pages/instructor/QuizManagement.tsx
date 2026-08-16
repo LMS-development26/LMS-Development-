@@ -19,15 +19,6 @@ import {
   ArrowDown,
   Save,
   BarChart3,
-<<<<<<< HEAD
-  Users,
-  Trophy,
-  Clock,
-  Target,
-} from 'lucide-react';
-
-import { courseApi, quizApi, questionApi, optionApi } from '@/services/api';
-=======
 } from 'lucide-react';
 
 import {
@@ -37,7 +28,6 @@ import {
   optionApi,
 } from '@/services/api';
 
->>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
 import { useAsync } from '@/hooks/useAsync';
 
 import {
@@ -62,11 +52,6 @@ import type {
 
 export function QuizManagement() {
   const { courseId } = useParams<{ courseId: string }>();
-<<<<<<< HEAD
-  //const navigate = useNavigate();
-  const { data: course } = useAsync(() => courseApi.getById(courseId!), [courseId]);
-  const { data: quizzes, loading, refetch } = useAsync(() => quizApi.listByCourse(courseId!), [courseId]);
-=======
 
   const { data: course } = useAsync(
     () => courseApi.getById(courseId!),
@@ -88,22 +73,10 @@ export function QuizManagement() {
   // --------------------------------------------------
   // Quiz state
   // --------------------------------------------------
->>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
 
   const [expandedQuiz, setExpandedQuiz] = useState<string | null>(null);
 
   const [quizModal, setQuizModal] = useState(false);
-<<<<<<< HEAD
-  const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
-
-  const [analyticsModal, setAnalyticsModal] = useState(false);
-  const [analyticsQuiz, setAnalyticsQuiz] = useState<Quiz | null>(null);
-  const [analyticsData, setAnalyticsData] = useState<any>(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-
-  const [quizForm, setQuizForm] = useState({ title: '', description: '', passing_percentage: 70, time_limit_minutes: 30, attempt_limit: 3 });
-=======
->>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
 
   const [editingQuiz, setEditingQuiz] =
     useState<Quiz | null>(null);
@@ -239,28 +212,9 @@ export function QuizManagement() {
     setQuizModal(true);
   };
 
-<<<<<<< HEAD
-  const openAnalyticsModal = async (quiz: Quiz) => {
-  setAnalyticsQuiz(quiz);
-  setAnalyticsModal(true);
-  setAnalyticsLoading(true);
-  setAnalyticsData(null);
-
-  try {
-    const data = await quizApi.getAnalytics(quiz.id);
-    setAnalyticsData(data);
-  } catch (error) {
-    console.error('Failed to load quiz analytics:', error);
-    setAnalyticsData(null);
-  } finally {
-    setAnalyticsLoading(false);
-  }
-};
-=======
   // ==================================================
   // SAVE QUIZ
   // ==================================================
->>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
 
   const saveQuiz = async () => {
     try {
@@ -606,16 +560,6 @@ export function QuizManagement() {
     }
   };
 
-<<<<<<< HEAD
-  const moveQuestion = async (quizId: string, index: number, direction: 'up' | 'down') => {
-    const qs = questionsByQuiz[quizId] || [];
-    const newOrder = [...qs];
-    const swapIndex = direction === 'up' ? index - 1 : index + 1;
-    if (swapIndex < 0 || swapIndex >= newOrder.length) return;
-    [newOrder[index], newOrder[swapIndex]] = [newOrder[swapIndex], newOrder[index]];
-    setQuestionsByQuiz((prev) => ({ ...prev, [quizId]: newOrder }));
-    //await questionApi.reorder(newOrder.map((q) => q.id));
-=======
   // ==================================================
   // MOVE QUESTION
   // ==================================================
@@ -690,7 +634,6 @@ export function QuizManagement() {
 
       await loadQuizData();
     }
->>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
   };
 
   // ==================================================
@@ -838,35 +781,6 @@ export function QuizManagement() {
                       </div>
                     </div>
                   </div>
-<<<<<<< HEAD
-                  {/* <div className="flex items-center gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => openQuestionModal(quiz.id)}><Plus className="h-4 w-4" /> Question</Button>
-                    <Button size="sm" variant="ghost" onClick={() => openQuizModal(quiz)}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => deleteQuiz(quiz.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
-                  </div> */}
-                  <div className="flex items-center gap-1">
-                    <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => openQuestionModal(quiz.id)}
-                    >
-                    <Plus className="h-4 w-4" />
-                    Question
-                    </Button>
-
-                    {/* <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => navigate(`/instructor/quizzes/${quiz.id}/analytics`)}
-                    >
-                    <BarChart3 className="h-4 w-4" />
-                    Analytics
-                    </Button> */}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => openAnalyticsModal(quiz)}
-=======
 
                   {/* Quiz actions */}
                   <div className="flex items-center gap-1">
@@ -890,20 +804,12 @@ export function QuizManagement() {
                       onClick={() =>
                         openAnalytics(quiz)
                       }
->>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
                     >
                       <BarChart3 className="h-4 w-4" />
                       Analytics
                     </Button>
 
                     <Button
-<<<<<<< HEAD
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => openQuizModal(quiz)}
-                    >
-                    <Pencil className="h-4 w-4" />
-=======
                       size="sm"
                       variant="ghost"
                       onClick={() =>
@@ -911,18 +817,11 @@ export function QuizManagement() {
                       }
                     >
                       <Pencil className="h-4 w-4" />
->>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
                     </Button>
 
                     <Button
                       size="sm"
                       variant="ghost"
-<<<<<<< HEAD
-                      onClick={() => deleteQuiz(quiz.id)}
-                    >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-=======
                       onClick={() =>
                         deleteQuiz(quiz.id)
                       }
@@ -930,7 +829,6 @@ export function QuizManagement() {
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
 
->>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
                   </div>
                 </div>
 
@@ -947,36 +845,6 @@ export function QuizManagement() {
                       </p>
                     ) : (
                       <div className="space-y-2">
-<<<<<<< HEAD
-                        {questions.map((q, qIdx) => {
-                          const opts = optionsByQuestion[q.id] || [];
-                          return (
-                            <div key={q.id} className="rounded-lg border border-gray-100 p-3">
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-start gap-2">
-                                  <div className="flex flex-col">
-                                    <button onClick={() => moveQuestion(quiz.id, qIdx, 'up')} disabled={qIdx === 0} className="text-gray-400 hover:text-gray-600 disabled:opacity-30"><ArrowUp className="h-3 w-3" /></button>
-                                    <button onClick={() => moveQuestion(quiz.id, qIdx, 'down')} disabled={qIdx === questions.length - 1} className="text-gray-400 hover:text-gray-600 disabled:opacity-30"><ArrowDown className="h-3 w-3" /></button>
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-900">{q.question_order}. {q.question_text}</p>
-                                    <span className="text-xs text-gray-400">{q.question_type === 'MCQ' ? 'Multiple Choice' : 'Multiple Correct'}</span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Button size="sm" variant="ghost" onClick={() => openQuestionModal(quiz.id, q)}><Pencil className="h-4 w-4" /></Button>
-                                  <Button size="sm" variant="ghost" onClick={() => deleteQuestion(q.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
-                                </div>
-                              </div>
-                              {opts.length > 0 && (
-                                <div className="mt-2 space-y-1 pl-8">
-                                  {opts.map((opt) => (
-                                    <div key={opt.id} className="flex items-center gap-2 text-sm">
-                                      <span className={classNames('flex h-5 w-5 items-center justify-center rounded-full', opt.is_correct ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400')}>
-                                        {opt.is_correct ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                                      </span>
-                                      <span className={opt.is_correct ? 'text-gray-900 font-medium' : 'text-gray-600'}>{opt.option_text}</span>
-=======
 
                         {questions.map(
                           (question, qIdx) => {
@@ -1034,7 +902,6 @@ export function QuizManagement() {
                                         <ArrowDown className="h-3 w-3" />
                                       </button>
 
->>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
                                     </div>
 
                                     {/* Question text */}
@@ -1273,239 +1140,6 @@ export function QuizManagement() {
         </div>
       </Modal>
 
-<<<<<<< HEAD
-      {/* Analytics Modal */}
-<Modal
-  open={analyticsModal}
-  onClose={() => setAnalyticsModal(false)}
-  title={`Quiz Analytics${
-    analyticsQuiz ? ` - ${analyticsQuiz.title}` : ''
-  }`}
-  size="lg"
-  footer={
-    <Button
-      variant="outline"
-      onClick={() => setAnalyticsModal(false)}
-    >
-      Close
-    </Button>
-  }
->
-  {analyticsLoading ? (
-    <LoadingState />
-  ) : !analyticsData ? (
-    <div className="py-8 text-center text-sm text-gray-500">
-      No analytics data available.
-    </div>
-  ) : (
-    <div className="space-y-6">
-
-      {/* Overview Cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-
-        {/* Total Students */}
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div className="flex items-center gap-2 text-gray-500">
-            <Users className="h-4 w-4" />
-            <span className="text-xs font-medium">
-              Total Students
-            </span>
-          </div>
-
-          <p className="mt-2 text-2xl font-bold text-gray-900">
-            {analyticsData.total_students || 0}
-          </p>
-        </div>
-
-        {/* Attempted */}
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div className="flex items-center gap-2 text-gray-500">
-            <Target className="h-4 w-4" />
-            <span className="text-xs font-medium">
-              Attempted
-            </span>
-          </div>
-
-          <p className="mt-2 text-2xl font-bold text-gray-900">
-            {analyticsData.attempted || 0}
-          </p>
-        </div>
-
-        {/* Average Score */}
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div className="flex items-center gap-2 text-gray-500">
-            <BarChart3 className="h-4 w-4" />
-            <span className="text-xs font-medium">
-              Average Score
-            </span>
-          </div>
-
-          <p className="mt-2 text-2xl font-bold text-gray-900">
-            {analyticsData.average_score || 0}%
-          </p>
-        </div>
-
-        {/* Pass Rate */}
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div className="flex items-center gap-2 text-gray-500">
-            <Trophy className="h-4 w-4" />
-            <span className="text-xs font-medium">
-              Pass Rate
-            </span>
-          </div>
-
-          <p className="mt-2 text-2xl font-bold text-gray-900">
-            {analyticsData.pass_rate || 0}%
-          </p>
-        </div>
-
-      </div>
-
-
-      {/* Pass / Fail Section */}
-      <div className="rounded-lg border border-gray-200 p-5">
-
-        <h3 className="text-sm font-semibold text-gray-900">
-          Student Performance
-        </h3>
-
-        <div className="mt-4 space-y-4">
-
-          {/* Passed */}
-          <div>
-            <div className="mb-1 flex justify-between text-sm">
-              <span className="text-gray-600">
-                Passed
-              </span>
-
-              <span className="font-medium text-gray-900">
-                {analyticsData.passed || 0}
-              </span>
-            </div>
-
-            <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-              <div
-                className="h-full rounded-full bg-emerald-500"
-                style={{
-                  width: `${
-                    analyticsData.attempted > 0
-                      ? (Number(analyticsData.passed) /
-                          Number(analyticsData.attempted)) *
-                        100
-                      : 0
-                  }%`,
-                }}
-              />
-            </div>
-          </div>
-
-
-          {/* Failed */}
-          <div>
-            <div className="mb-1 flex justify-between text-sm">
-              <span className="text-gray-600">
-                Failed
-              </span>
-
-              <span className="font-medium text-gray-900">
-                {analyticsData.failed || 0}
-              </span>
-            </div>
-
-            <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-              <div
-                className="h-full rounded-full bg-red-500"
-                style={{
-                  width: `${
-                    analyticsData.attempted > 0
-                      ? (Number(analyticsData.failed) /
-                          Number(analyticsData.attempted)) *
-                        100
-                      : 0
-                  }%`,
-                }}
-              />
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-
-      {/* Score Statistics */}
-      <div className="rounded-lg border border-gray-200 p-5">
-
-        <h3 className="text-sm font-semibold text-gray-900">
-          Score Statistics
-        </h3>
-
-        <div className="mt-4 grid grid-cols-3 gap-4">
-
-          <div>
-            <p className="text-xs text-gray-500">
-              Highest Score
-            </p>
-
-            <p className="mt-1 text-xl font-semibold text-gray-900">
-              {analyticsData.highest_score || 0}%
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs text-gray-500">
-              Average Score
-            </p>
-
-            <p className="mt-1 text-xl font-semibold text-gray-900">
-              {analyticsData.average_score || 0}%
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs text-gray-500">
-              Lowest Score
-            </p>
-
-            <p className="mt-1 text-xl font-semibold text-gray-900">
-              {analyticsData.lowest_score || 0}%
-            </p>
-          </div>
-
-        </div>
-      </div>
-
-
-      {/* Time Statistics */}
-      <div className="rounded-lg border border-gray-200 p-5">
-
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-gray-500" />
-
-          <h3 className="text-sm font-semibold text-gray-900">
-            Time Statistics
-          </h3>
-        </div>
-
-        <div className="mt-3">
-
-          <p className="text-xs text-gray-500">
-            Average Completion Time
-          </p>
-
-          <p className="mt-1 text-xl font-semibold text-gray-900">
-            {analyticsData.average_time || 0} minutes
-          </p>
-
-        </div>
-      </div>
-
-    </div>
-  )}
-</Modal>
-
-      {/* Question Modal */}
-      <Modal open={questionModal} onClose={() => setQuestionModal(false)} title={editingQuestion ? 'Edit Question' : 'Add Question'} size="lg" footer={<><Button variant="outline" onClick={() => setQuestionModal(false)}>Cancel</Button><Button onClick={saveQuestion}><Save className="h-4 w-4" /> Save Question</Button></>}>
-=======
       {/* ================================================= */}
       {/* QUESTION MODAL */}
       {/* ================================================= */}
@@ -1539,7 +1173,6 @@ export function QuizManagement() {
           </>
         }
       >
->>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
         <div className="space-y-4">
 
           <Textarea

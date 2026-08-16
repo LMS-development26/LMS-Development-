@@ -80,21 +80,6 @@ const submitAttemptValidation = [
     .withMessage('Answers must be an array')
 ];
 
-<<<<<<< HEAD
-// Quiz routes
-router.get('/course/:courseId', protect, quizController.getQuizzesByCourse);
-router.get(
-  '/:quizId/analytics',
-  protect,
-  authorize('INSTRUCTOR', 'ADMIN'),
-  quizController.getQuizAnalytics
-);
-router.get('/:id', protect, quizController.getQuiz);
-router.post('/', protect, authorize('INSTRUCTOR', 'ADMIN'), createQuizValidation, handleValidationErrors, quizController.createQuiz);
-router.put('/:id', protect, authorize('INSTRUCTOR', 'ADMIN'), quizController.updateQuiz);
-router.delete('/:id', protect, authorize('INSTRUCTOR', 'ADMIN'), quizController.deleteQuiz);
-=======
->>>>>>> 9b9db1aa90e05a8159bcec47fb98923eb293faaa
 
 // =====================================================
 // QUIZ ROUTES
