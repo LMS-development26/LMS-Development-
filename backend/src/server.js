@@ -46,6 +46,10 @@ const app = express();
 // Allow the frontend to display uploaded images/videos served by the backend.
 app.use(
   helmet({
+    crossOriginResourcePolicy: {
+      policy: 'cross-origin',
+    },
+
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
