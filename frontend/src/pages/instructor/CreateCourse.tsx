@@ -154,9 +154,20 @@ export function CreateCourse() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Create New Course</h1>
-        <p className="mt-1 text-sm text-gray-500">Follow the steps to set up your course.</p>
-      </div>
+      {/* Back to Courses button */}
+      <button
+        onClick={() => navigate('/instructor/courses')}
+        className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Back to Courses
+      </button>
+
+      <h1 className="text-2xl font-bold text-gray-900">Create New Course</h1>
+      <p className="mt-1 text-sm text-gray-500">
+        Follow the steps to set up your course.
+      </p>
+    </div>
 
       {/* Stepper */}
       <div className="flex items-center justify-between overflow-x-auto">

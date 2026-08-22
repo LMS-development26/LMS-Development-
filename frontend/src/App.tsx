@@ -14,6 +14,7 @@ import { InstructorRegister } from '@/pages/instructor/InstructorRegister';
 import { InstructorDashboard } from '@/pages/instructor/InstructorDashboard';
 import { CourseManagement } from '@/pages/instructor/CourseManagement';
 import { CreateCourse } from '@/pages/instructor/CreateCourse';
+
 import { CourseDetail } from '@/pages/instructor/CourseDetail';
 import { CourseBuilder } from '@/pages/instructor/CourseBuilder';
 

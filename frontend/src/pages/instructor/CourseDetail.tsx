@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import {
-  ArrowLeft, Pencil, Upload, Users, ClipboardList, FileText, FileQuestion, Video,
+  ArrowLeft, Pencil, Upload, Users, FileText, FileQuestion, Video,
   BarChart3, BookOpen, Clock, Tag as TagIcon,
 } from 'lucide-react';
 import { courseApi, moduleApi, assignmentApi, quizApi, meetingApi, reviewApi } from '@/services/api';
@@ -23,7 +23,7 @@ export function CourseDetail() {
   const tabs = [
     { to: `/instructor/courses/${courseId}/builder`, label: 'Course Builder', icon: <Upload className="h-4 w-4" /> },
     { to: `/instructor/courses/${courseId}/edit`, label: 'Edit Details', icon: <Pencil className="h-4 w-4" /> },
-    { to: `/instructor/courses/${courseId}/enrollments`, label: 'Enrollment Requests', icon: <ClipboardList className="h-4 w-4" /> },
+    
     { to: `/instructor/courses/${courseId}/students`, label: 'Enrolled Students', icon: <Users className="h-4 w-4" /> },
     { to: `/instructor/courses/${courseId}/assignments`, label: 'Assignments', icon: <FileText className="h-4 w-4" /> },
     { to: `/instructor/courses/${courseId}/quizzes`, label: 'Quizzes', icon: <FileQuestion className="h-4 w-4" /> },
